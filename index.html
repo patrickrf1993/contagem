@@ -6,22 +6,15 @@
 <meta name="theme-color" content="#ffffff">
 <title>Contagem de insumos</title>
 <style>
-:root{
-  --bg:#ffffff; --ink:#1a1f24; --muted:#6b7580; --line:#e6e9ec; --soft:#f4f6f8;
-  --accent:#0a6b70; --accent-soft:#e3f1f1; --ok:#23804a; --err:#b3261e;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: dark){
-  :root{--bg:#121518; --ink:#e8ecef; --muted:#9aa4ad; --line:#262c31; --soft:#1b2024; --accent:#4fbdb8; --accent-soft:#16302f; --ok:#5cc486; --err:#f08b83; color-scheme:dark;}
-}
+:root{--bg:#fff;--ink:#1a1f24;--muted:#6b7580;--line:#e6e9ec;--soft:#f4f6f8;--accent:#0a6b70;--accent-soft:#e3f1f1;--ok:#23804a;--err:#b3261e;--warn:#9a6516;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#121518;--ink:#e8ecef;--muted:#9aa4ad;--line:#262c31;--soft:#1b2024;--accent:#4fbdb8;--accent-soft:#16302f;--ok:#5cc486;--err:#f08b83;--warn:#e0a84a;color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
-body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,0px)}
-button,input,select{font:inherit;color:inherit}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .wrap{max-width:640px;margin:0 auto;padding:0 16px}
-
 header{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid var(--line)}
 .bar1{display:flex;align-items:center;gap:10px;padding:12px 0 10px}
 .bar1 h1{flex:1;margin:0;font-size:19px;font-weight:650}
@@ -37,18 +30,18 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:env(safe
 .find input{flex:1;border:0;background:var(--soft);border-radius:8px;padding:9px 12px;min-height:40px}
 .find button{border:0;background:var(--soft);border-radius:8px;padding:0 12px;min-height:40px;color:var(--muted)}
 .find button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);font-weight:600}
-
 ul{list-style:none;margin:0;padding:0 0 120px}
 li.it{padding:12px 0;border-bottom:1px solid var(--line)}
 .row{display:flex;align-items:center;gap:12px}
 .txt{flex:1;min-width:0}
 .nm{font-size:15.5px;font-weight:550;line-height:1.25;overflow-wrap:anywhere}
 .sub{font-size:12.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
-.sub .ok{color:var(--ok)}
+.sub .ok{color:var(--ok)} .sub .pend{color:var(--warn)}
 .in{display:flex;align-items:center;gap:6px}
 .in input{width:112px;text-align:right;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;min-height:46px}
 .in input:focus{border-color:var(--accent);outline:none}
 li.done .in input{border-color:var(--ok)}
+li.flash .in input{background:var(--accent-soft)}
 .u{font-size:12px;color:var(--muted);width:30px}
 .x{border:0;background:none;color:var(--muted);font-size:12.5px;padding:4px 0 0;text-decoration:underline;text-underline-offset:2px}
 .vol{display:none;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;background:var(--soft);border-radius:10px;font-variant-numeric:tabular-nums}
@@ -57,22 +50,23 @@ li.multi .vol{display:flex}
 .vol .eq{margin-left:auto;font-weight:600}
 .vol small{color:var(--muted)}
 .none{color:var(--muted);text-align:center;padding:40px 0}
-
 footer{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));z-index:6}
 footer .wrap{display:flex;align-items:center;gap:12px}
-.prog{flex:1;font-size:14px;color:var(--muted)}
+.prog{flex:1;font-size:13.5px;color:var(--muted);line-height:1.3}
 .prog b{color:var(--ink);font-variant-numeric:tabular-nums}
-.send{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:12px 18px;font-weight:600;min-height:46px}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}
+.live.busy{background:var(--warn)} .live.off{background:var(--err)}
+.send{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:12px 16px;font-weight:600;min-height:46px}
 @media (prefers-color-scheme: dark){.send{color:#0b1f1f}}
-
+.ghost{border:1px solid var(--line);background:none;border-radius:10px;padding:10px 14px;min-height:44px}
 dialog{border:0;border-radius:16px;padding:20px;width:min(92vw,420px);background:var(--bg);color:var(--ink)}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog h2{margin:0 0 6px;font-size:18px}
 dialog p{margin:6px 0 12px;color:var(--muted);font-size:14.5px}
-dialog label{display:block;font-size:14px;margin-bottom:4px}
+dialog label{display:block;font-size:14px;margin:10px 0 4px}
 dialog input{width:100%;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:10px 12px;min-height:44px}
 .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
-.ghost{border:1px solid var(--line);background:none;border-radius:10px;padding:10px 14px;min-height:44px}
+.msg{color:var(--err);font-size:14px;min-height:20px;margin-top:8px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;display:none;z-index:9;max-width:90vw}
 .toast.on{display:block}
 </style>
@@ -91,26 +85,23 @@ dialog input{width:100%;border:1px solid var(--line);background:var(--soft);bord
     </div>
   </div>
 </header>
-
 <main class="wrap"><ul id="list"></ul></main>
-
 <footer>
   <div class="wrap">
-    <div class="prog" id="prog"></div>
-    <button class="send" id="sendBtn">Enviar contagem</button>
+    <div class="prog"><div><span class="live busy" id="live"></span><span id="liveTxt">Conectando…</span></div><div id="prog"></div></div>
+    <button class="send" id="dlBtn">Baixar do dia</button>
   </div>
 </footer>
 
-<dialog id="dlg">
-  <h2>Enviar contagem</h2>
-  <p id="dlgInfo"></p>
-  <label for="who">Quem contou</label>
-  <input id="who" autocomplete="name" placeholder="Seu nome">
-  <div class="acts">
-    <button class="ghost" id="clearBtn">Apagar contagem do dia</button>
-    <button class="ghost" id="cancelBtn">Voltar</button>
-    <button class="send" id="goBtn">Enviar</button>
-  </div>
+<dialog id="login">
+  <h2>Entrar na contagem</h2>
+  <p>Use o código de acesso que a equipe recebeu.</p>
+  <label for="code">Código de acesso</label>
+  <input id="code" autocomplete="off" autocapitalize="off">
+  <label for="who">Seu nome</label>
+  <input id="who" autocomplete="name" placeholder="Aparece para a equipe nos itens que você contar">
+  <div class="msg" id="loginMsg"></div>
+  <div class="acts"><button class="send" id="loginBtn">Entrar</button></div>
 </dialog>
 <div class="toast" id="toast" role="status"></div>
 
@@ -123,6 +114,8 @@ const DEPS = [
   {id:'MAQUINA', aba:'STK MAQUINA', nome:'Máquina', dep:'3020'},
   {id:'EMBALAGEM', aba:'STK EMBALAGEM', nome:'Embalagem', dep:'3023'}
 ];
+const API = '/api/contagem';
+const POLL_MS = 5000;
 const $=s=>document.querySelector(s);
 const fmt=(n,d=3)=>(n==null||isNaN(n))?'':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:d});
 const round=n=>Math.round(n*1e6)/1e6;
@@ -131,25 +124,91 @@ function num(s){ if(s==null) return null; s=String(s).trim().replace(/\s/g,''); 
   const n=Number(s); return isFinite(n)&&n>=0?n:NaN; }
 const today=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());};
 const br=s=>s.split('-').reverse().join('/');
+const hora=t=>new Date(t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2800);}
-const store={
-  get(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-};
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 
-const S={date:today(), dep:store.get('dep','ALMOX'), q:'', pend:false, data:{}, last:{}};
+const S={date:today(), dep:ls.get('dep','ALMOX'), q:'', pend:false,
+  code:ls.get('codigo',''), who:ls.get('who',''), remote:{}, ver:null,
+  pending:ls.get('pendentes',{}), sending:false, online:false};
 if(!DEPS.some(d=>d.id===S.dep)) S.dep='ALMOX';
-function load(){ S.data=store.get('cont-'+S.date,{}); DEPS.forEach(d=>S.data[d.id]=S.data[d.id]||{}); S.last=store.get('ultima',{}); }
-function save(){ store.set('cont-'+S.date,S.data); }
+const K=(dep,row)=>dep+':r'+row;
 const has=v=>!!(v&&v.total!=null&&!isNaN(v.total));
-const nDone=id=>CAT[id].filter(it=>has(S.data[id]['r'+it[0]])).length;
+function val(key){ const p=S.pending[S.date]; if(p && key in p) return p[key]; return S.remote[key]; }
+const nDone=id=>CAT[id].filter(it=>has(val(K(id,it[0])))).length;
+function setLive(kind,txt){ const l=$('#live'); l.className='live'+(kind?' '+kind:''); $('#liveTxt').textContent=txt; }
 
+/* ---------- servidor ---------- */
+async function api(method, params, body){
+  const url = API + (params ? '?' + new URLSearchParams(params) : '');
+  const r = await fetch(url,{method, headers:{'x-codigo':S.code,'Content-Type':'application/json'}, body: body?JSON.stringify(body):undefined, cache:'no-store'});
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok){ const e=new Error((j&&j.erro)||('HTTP '+r.status)); e.status=r.status; throw e; }
+  return j;
+}
+let pollT=null, pollBusy=false;
+async function poll(){
+  if(pollBusy || !S.code) return;
+  pollBusy=true;
+  const date=S.date;
+  try{
+    await flush();
+    const params={data:date}; if(S.ver!=null) params.v=S.ver;
+    const j=await api('GET',params);
+    if(date!==S.date) return;
+    if(j.itens){ const before=S.remote; S.remote=j.itens; S.ver=j.v; applyRemote(before); }
+    else S.ver=j.v;
+    S.online=true;
+    const np=Object.keys(S.pending[S.date]||{}).length;
+    setLive(np?'busy':'', np?('Enviando '+np+' item(s)…'):'Ao vivo · atualizado '+hora(Date.now()));
+  }catch(e){
+    if(e.status===401){ S.code=''; ls.set('codigo',''); openLogin('Código de acesso inválido. Confira com o responsável.'); }
+    else if(e.status===500 && e.message==='configuracao') setLive('off','Servidor sem configuração (banco ou código)');
+    else setLive('off','Sem conexão. Suas contagens ficam guardadas e serão enviadas.');
+    S.online=false;
+  }finally{ pollBusy=false; }
+}
+function schedule(){ clearInterval(pollT); pollT=setInterval(()=>{ if(!document.hidden) poll(); }, POLL_MS); }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
+
+async function flush(){
+  if(S.sending) return;
+  const dates=Object.keys(S.pending).filter(d=>Object.keys(S.pending[d]).length);
+  if(!dates.length) return;
+  S.sending=true;
+  try{
+    for(const d of dates){
+      const batch={...S.pending[d]};
+      const j=await api('POST',null,{data:d, itens:batch});
+      const cur=S.pending[d]||{};
+      Object.keys(batch).forEach(k=>{
+        if(JSON.stringify(cur[k])===JSON.stringify(batch[k])){
+          if(d===S.date){ if(batch[k]===null) delete S.remote[k]; else S.remote[k]={...batch[k],t:Date.now()}; }
+          delete cur[k];
+        }
+      });
+      if(!Object.keys(cur).length) delete S.pending[d];
+      ls.set('pendentes',S.pending);
+      if(d===S.date && j && j.v!=null) S.ver=null; // força recarga completa na próxima leitura
+    }
+  } finally { S.sending=false; }
+}
+function put(key, v){
+  const rec = v===null ? null : {...v, by:S.who};
+  (S.pending[S.date] ||= {})[key]=rec;
+  ls.set('pendentes',S.pending);
+  setLive('busy','Enviando…');
+  clearTimeout(put.t); put.t=setTimeout(poll,400);
+  tabs();
+}
+
+/* ---------- tela ---------- */
 function tabs(){
   const box=$('#deps');
   if(!box.children.length) DEPS.forEach(d=>{
     const b=document.createElement('button'); b.className='dep'; b.setAttribute('role','tab'); b.dataset.id=d.id;
     b.append(d.nome, document.createElement('span'));
-    b.onclick=()=>{S.dep=d.id; store.set('dep',d.id); render(); scrollTo({top:0});};
+    b.onclick=()=>{S.dep=d.id; ls.set('dep',d.id); build(); scrollTo({top:0});};
     box.append(b);
   });
   let all=0,tot=0;
@@ -160,28 +219,35 @@ function tabs(){
     b.setAttribute('aria-selected',d.id===S.dep);
   });
   const d=DEPS.find(x=>x.id===S.dep);
-  $('#prog').innerHTML='';
-  const b=document.createElement('b'); b.textContent=all+' de '+tot;
-  $('#prog').append(b,' contados · depósito '+d.dep);
+  const p=$('#prog'); p.textContent=''; const b=document.createElement('b'); b.textContent=all+' de '+tot;
+  p.append(b,' contados pela equipe · dep. '+d.dep);
 }
-
 function match(it){
-  if(S.pend && has(S.data[S.dep]['r'+it[0]])) return false;
+  if(S.pend && has(val(K(S.dep,it[0])))) return false;
   const q=S.q.trim().toLowerCase(); if(!q) return true;
   return it[2].toLowerCase().includes(q)||String(it[1]).includes(q);
 }
-
-function render(){
-  tabs();
+const nodes=new Map();
+function build(){
+  tabs(); nodes.clear();
   const ul=$('#list'); ul.innerHTML='';
   const items=CAT[S.dep].filter(match);
   if(!items.length){ const li=document.createElement('li'); li.className='none';
     li.textContent=S.pend&&!S.q?'Tudo contado neste depósito.':'Nenhum insumo com esse nome ou código.'; ul.append(li); return; }
-  items.forEach(it=>ul.append(item(it)));
+  items.forEach(it=>{ const li=item(it); nodes.set(K(S.dep,it[0]),li); ul.append(li); });
 }
-
+function applyRemote(before){
+  tabs();
+  nodes.forEach((li,key)=>{
+    const a=before[key], b=S.remote[key];
+    if(JSON.stringify(a)!==JSON.stringify(b)){
+      li._sync();
+      if(b && b.by && b.by!==S.who){ li.classList.add('flash'); setTimeout(()=>li.classList.remove('flash'),1500); }
+    }
+  });
+}
 function item(it){
-  const [row,cod,nome,und,fator]=it, key='r'+row, dep=S.dep;
+  const [row,cod,nome,und,fator]=it, dep=S.dep, key=K(dep,row);
   const li=document.createElement('li'); li.className='it';
   li.innerHTML='<div class="row"><div class="txt"><div class="nm"></div><div class="sub"></div><button class="x" type="button">Contar por volumes</button></div>'+
     '<div class="in"><input class="q" inputmode="decimal" enterkeyhint="next" aria-label="Quantidade"><span class="u"></span></div></div>'+
@@ -189,83 +255,78 @@ function item(it){
   li.querySelector('.nm').textContent=nome;
   li.querySelector('.u').textContent=und;
   const q=li.querySelector('.q'), v=li.querySelector('.v'), f=li.querySelector('.f'), x=li.querySelector('.x'), eq=li.querySelector('.eq');
-  if(fator) f.value=fmt(fator,6);
+  const setMulti=on=>{ li.classList.toggle('multi',on); q.readOnly=on; x.textContent=on?'Digitar quantidade direta':'Contar por volumes'; };
+  const live=()=>{ const a=num(v.value), b=num(f.value); eq.textContent=(a!=null&&!isNaN(a)&&b!=null&&!isNaN(b))?'= '+fmt(round(a*b))+' '+und:''; };
 
-  function sub(){
-    const cur=S.data[dep][key], s=li.querySelector('.sub'); s.textContent=cod;
-    const l=S.last[dep+key];
-    if(has(cur)){ const o=document.createElement('span'); o.className='ok'; o.textContent='  ✓ contado'; s.append(o); }
-    else if(l) s.append('  · última: '+fmt(l.total)+' em '+br(l.date).slice(0,5));
+  li._sync=()=>{
+    const cur=val(key), s=li.querySelector('.sub'); s.textContent=cod;
+    const pend=S.pending[S.date] && key in S.pending[S.date];
     li.classList.toggle('done',has(cur));
-  }
-  function put(val){
-    S.data[dep][key]=val; save();
-    if(has(val)){ S.last[dep+key]={total:val.total,date:S.date}; store.set('ultima',S.last); }
-    sub(); tabs();
-  }
-  function setMulti(on){ li.classList.toggle('multi',on); q.readOnly=on; x.textContent=on?'Digitar quantidade direta':'Contar por volumes'; }
-  function live(){ const a=num(v.value), b=num(f.value); eq.textContent=(a!=null&&!isNaN(a)&&b!=null&&!isNaN(b))?'= '+fmt(round(a*b))+' '+und:''; }
-
-  const cur=S.data[dep][key];
-  if(has(cur)){ q.value=fmt(cur.total,6); if(cur.m){ setMulti(true); v.value=fmt(cur.q,6); f.value=fmt(cur.m,6); live(); } }
-  sub();
+    if(has(cur)){ const o=document.createElement('span'); o.className=pend?'pend':'ok';
+      o.textContent = pend ? '  · enviando…' : '  ✓ '+(cur.by||'contado')+(cur.t?' às '+hora(cur.t):''); s.append(o); }
+    const a=document.activeElement; if(a===q||a===v||a===f) return;
+    if(has(cur)){
+      q.value=fmt(cur.total,6);
+      if(cur.m){ setMulti(true); v.value=fmt(cur.q,6); f.value=fmt(cur.m,6); live(); }
+      else if(li.classList.contains('multi')){ setMulti(false); v.value=''; eq.textContent=''; }
+    } else { q.value=''; if(li.classList.contains('multi')){ v.value=''; eq.textContent=''; } }
+  };
+  if(fator) f.value=fmt(fator,6);
+  li._sync();
 
   q.addEventListener('change',()=>{ const n=num(q.value);
-    if(n===null) return put(null);
-    if(isNaN(n)){ toast('Digite só números'); q.value=''; return put(null); }
-    q.value=fmt(n,6); put({q:n,m:null,total:n}); });
+    if(n===null){ put(key,null); return li._sync(); }
+    if(isNaN(n)){ toast('Digite só números'); q.value=''; return; }
+    q.value=fmt(n,6); put(key,{q:n,m:null,total:n}); li._sync(); });
   const calc=()=>{ const a=num(v.value), b=num(f.value);
-    if(a===null){ q.value=''; return put(null); }
+    if(a===null){ put(key,null); return li._sync(); }
     if(isNaN(a)||b===null||isNaN(b)){ toast('Informe volumes e quantidade por volume'); return; }
-    const t=round(a*b); q.value=fmt(t,6); put({q:a,m:b,total:t}); };
+    const t=round(a*b); q.value=fmt(t,6); put(key,{q:a,m:b,total:t}); li._sync(); };
   v.addEventListener('input',live); f.addEventListener('input',live);
   v.addEventListener('change',calc); f.addEventListener('change',calc);
   x.onclick=()=>{ const on=!li.classList.contains('multi'); setMulti(on);
-    if(on){ q.value=''; put(null); v.focus(); } else { v.value=''; eq.textContent=''; q.value=''; put(null); q.focus(); } };
+    if(on){ v.focus(); } else { v.value=''; eq.textContent=''; if(has(val(key))&&val(key).m){ q.value=''; put(key,null); li._sync(); } q.focus(); } };
   [q,v].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); next(li); } }));
   return li;
 }
 function next(li){ const n=li.nextElementSibling; if(!n||!n.classList.contains('it')) return;
   (n.classList.contains('multi')?n.querySelector('.v'):n.querySelector('.q')).focus(); n.scrollIntoView({block:'center'}); }
 
-/* envio */
-function csv(who){
+/* ---------- arquivo para a macro ---------- */
+$('#dlBtn').onclick=async()=>{
+  await poll();
   const out=['ABA;CODIGO;LINHA;CONTAGEM;FORMULA;DATA;RESPONSAVEL'];
-  const clean=s=>String(s).replace(/[;\r\n]/g,' ');
-  DEPS.forEach(d=>CAT[d.id].forEach(it=>{ const v=S.data[d.id]['r'+it[0]]; if(!has(v)) return;
-    out.push([d.aba,it[1],it[0],round(v.total),v.m?round(v.q)+'*'+round(v.m):'',br(S.date),clean(who)].join(';')); }));
-  return {text:'\ufeff'+out.join('\r\n')+'\r\n', n:out.length-1};
-}
-$('#sendBtn').onclick=()=>{
-  const parts=DEPS.map(d=>{const n=nDone(d.id);return n?d.nome+' '+n:null}).filter(Boolean);
-  $('#dlgInfo').textContent=parts.length?('Contagem de '+br(S.date)+': '+parts.join(', ')+' itens.'):'Nenhum item contado em '+br(S.date)+' ainda.';
-  $('#goBtn').disabled=!parts.length;
-  $('#who').value=store.get('who','');
-  $('#dlg').showModal();
-};
-$('#cancelBtn').onclick=()=>$('#dlg').close();
-$('#clearBtn').onclick=()=>{ if(!confirm('Apagar todas as contagens de '+br(S.date)+' neste celular?')) return;
-  store.set('cont-'+S.date,{}); load(); render(); $('#dlg').close(); toast('Contagem do dia apagada'); };
-$('#goBtn').onclick=async()=>{
-  const who=$('#who').value.trim(); if(!who){ $('#who').focus(); toast('Informe quem contou'); return; }
-  store.set('who',who);
-  const {text}=csv(who);
-  const name='contagem_'+S.date+'_'+who.split(' ')[0].normalize('NFD').replace(/[^\w]/g,'')+'.csv';
-  const file=new File([text],name,{type:'text/csv'});
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:'Contagem '+br(S.date), text:'Contagem de insumos '+br(S.date)+' – '+who}); $('#dlg').close(); toast('Contagem enviada'); return; }
-    catch(e){ if(e.name==='AbortError') return; }
-  }
-  const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=name; document.body.append(a); a.click(); a.remove();
+  const clean=s=>String(s||'').replace(/[;\r\n]/g,' ');
+  DEPS.forEach(d=>CAT[d.id].forEach(it=>{ const v=val(K(d.id,it[0])); if(!has(v)) return;
+    out.push([d.aba,it[1],it[0],round(v.total),v.m?round(v.q)+'*'+round(v.m):'',br(S.date),clean(v.by)].join(';')); }));
+  if(out.length===1){ toast('Nenhum item contado em '+br(S.date)); return; }
+  const name='contagem_'+S.date+'.csv';
+  const blob=new Blob(['\ufeff'+out.join('\r\n')+'\r\n'],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  $('#dlg').close(); toast('Arquivo salvo: '+name);
+  toast('Arquivo baixado: '+name+' ('+(out.length-1)+' itens)');
+};
+
+/* ---------- entrada ---------- */
+function openLogin(msg){ $('#code').value=S.code; $('#who').value=S.who; $('#loginMsg').textContent=msg||''; if(!$('#login').open) $('#login').showModal(); }
+$('#login').addEventListener('cancel',e=>e.preventDefault());
+$('#loginBtn').onclick=async()=>{
+  const c=$('#code').value.trim(), w=$('#who').value.trim();
+  if(!c){ $('#loginMsg').textContent='Informe o código de acesso.'; return; }
+  if(!w){ $('#loginMsg').textContent='Informe seu nome.'; return; }
+  S.code=c; S.who=w.slice(0,60);
+  $('#loginBtn').disabled=true; $('#loginMsg').textContent='';
+  try{ await api('GET',{data:S.date}); ls.set('codigo',S.code); ls.set('who',S.who); $('#login').close(); S.ver=null; poll(); schedule(); }
+  catch(e){ $('#loginMsg').textContent = e.status===401 ? 'Código incorreto.' : 'Não foi possível conectar. Verifique a internet e tente de novo.'; S.code=''; }
+  finally{ $('#loginBtn').disabled=false; }
 };
 
 $('#date').value=S.date;
-$('#date').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; load(); render(); };
-$('#q').oninput=e=>{ S.q=e.target.value; render(); };
-$('#pend').onclick=()=>{ S.pend=!S.pend; $('#pend').setAttribute('aria-pressed',S.pend); render(); };
-load(); render();
+$('#date').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; S.remote={}; S.ver=null; build(); poll(); };
+$('#q').oninput=e=>{ S.q=e.target.value; build(); };
+$('#pend').onclick=()=>{ S.pend=!S.pend; $('#pend').setAttribute('aria-pressed',S.pend); build(); };
+build();
+if(!S.code||!S.who) openLogin(); else { poll(); schedule(); }
 </script>
 </body>
 </html>

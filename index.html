@@ -563,7 +563,7 @@ function renderMe(){
   $('#meBtn').textContent=S.me.nome.split(' ')[0];
   $('#menuWho').textContent=S.me.nome+' ('+S.me.login+')';
   $('#mAdmin').hidden=!S.me.admin;
-  $('#dlBtn').hidden=!S.me.admin;
+  $('#dlBtn').hidden=!(S.me.admin||S.me.exporta);
 }
 $('#meBtn').onclick=e=>{ e.stopPropagation(); $('#menu').hidden=!$('#menu').hidden; };
 document.addEventListener('click',e=>{ if(!$('#menu').contains(e.target)) $('#menu').hidden=true; });
@@ -663,6 +663,11 @@ function renderUsers(){
       b.onclick=async()=>{ b.disabled=true; const deps=on?u.deps.filter(x=>x!==d.id):u.deps.concat(d.id);
         await saveUser({login:u.login,deps:DEPS.map(x=>x.id).filter(x=>deps.includes(x))}); };
       chips.append(b); });
+    const perm=el('div','chips'); perm.style.marginTop='0';
+    const pe=el('button','chip','Baixar a contagem do dia'); pe.setAttribute('aria-pressed',!!u.exporta);
+    pe.title='Mostra o botão "Baixar do dia" para este usuário';
+    pe.onclick=async()=>{ pe.disabled=true; if(await saveUser({login:u.login,exporta:!u.exporta})) toast(!u.exporta?u.nome+' agora pode baixar a contagem do dia.':'Download da contagem retirado de '+u.nome+'.'); };
+    perm.append(el('small','lg','Permissões:'),pe);
     const acts=el('div','uacts');
     const bl=el('button','ghost'+(u.ativo?' danger':''),u.ativo?'Bloquear acesso':'Liberar acesso');
     bl.onclick=async()=>{ bl.disabled=true; await saveUser({login:u.login,ativo:!u.ativo}); };
@@ -681,7 +686,7 @@ function renderUsers(){
       try{ const j=await api('admin','POST',null,{acao:'encerrar',login:u.login}); const i=S.users.findIndex(x=>x.login===u.login); S.users[i]={...j.usuario,online:null}; renderUsers(); toast('Sessão encerrada. '+u.nome+' já pode entrar em outro aparelho.'); }
       catch(e){ if(!authFail(e)) toast(e.message); enc.disabled=false; } };
     acts.append(enc,bl,pw,ed,del);
-    c.append(h,st,chips,acts); box.append(c);
+    c.append(h,st,chips,perm,acts); box.append(c);
   });
 }
 const duDeps=new Set();

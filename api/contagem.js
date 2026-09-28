@@ -1,4 +1,6 @@
 const L = require('./_lib');
+// perfil enviado ao app, com a permissão de baixar a contagem do dia
+const perfilDe = u => ({ ...L.perfil(u), exporta: !!(u.admin || u.exporta) });
 const num = v => (typeof v === 'number' && isFinite(v) && v >= 0) ? v : null;
 const mesmo = (a, b) => (!a && !b) || (a && b && a.total === b.total && (a.m || null) === (b.m || null) && a.q === b.q && JSON.stringify(a.p || null) === JSON.stringify(b.p || null));
 const resumo = r => r ? { total: r.total, q: r.q, m: r.m || null, p: r.p || undefined, by: r.by || '' } : null;
@@ -40,7 +42,7 @@ module.exports = async (req, res) => {
           }
         } catch (e) {}
       }
-      if (req.query.v !== undefined && String(ver) === String(req.query.v)) return res.status(200).json({ v: ver, perfil: L.perfil(u), catalogo });
+      if (req.query.v !== undefined && String(ver) === String(req.query.v)) return res.status(200).json({ v: ver, perfil: perfilDe(u), catalogo });
       const [flat, v2, fflat] = await L.redis([['HGETALL', kItens], ['GET', kVer], ['HGETALL', 'fatores']]);
       const fatores = {};
       for (let i = 0; i + 1 < (fflat || []).length; i += 2) { if (pode(fflat[i])) { const n = Number(fflat[i + 1]); if (isFinite(n)) fatores[fflat[i]] = n; } }
@@ -49,7 +51,7 @@ module.exports = async (req, res) => {
         if (!pode(flat[i])) continue;
         try { itens[flat[i]] = JSON.parse(flat[i + 1]); } catch (e) {}
       }
-      return res.status(200).json({ v: Number(v2 || 0), itens, fatores, perfil: L.perfil(u), catalogo });
+      return res.status(200).json({ v: Number(v2 || 0), itens, fatores, perfil: perfilDe(u), catalogo });
     }
 
     if (req.method === 'POST') {

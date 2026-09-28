@@ -1,5 +1,5 @@
 const L = require('./_lib');
-const semSegredo = (login, u) => ({ login, nome: u.nome, deps: u.deps || [], ativo: !!u.ativo, criado: u.criado || null });
+const semSegredo = (login, u) => ({ login, nome: u.nome, deps: u.deps || [], ativo: !!u.ativo, exporta: !!u.exporta, criado: u.criado || null });
 
 module.exports = async (req, res) => {
   if (!L.base(req, res)) return;
@@ -94,21 +94,23 @@ module.exports = async (req, res) => {
         if (!nome) return res.status(400).json({ erro: 'nome', msg: 'Informe o nome.' });
         const deps = Array.isArray(b.deps) ? b.deps.filter(d => L.DEPS.includes(d)) : (atual ? atual.deps : []);
         const ativo = typeof b.ativo === 'boolean' ? b.ativo : (atual ? atual.ativo : true);
+        const exporta = typeof b.exporta === 'boolean' ? b.exporta : (atual ? !!atual.exporta : false);
         const senha = b.senha != null ? String(b.senha) : '';
         if (novo && senha.length < 4) return res.status(400).json({ erro: 'senha', msg: 'A senha precisa ter pelo menos 4 caracteres.' });
         if (senha && senha.length < 4) return res.status(400).json({ erro: 'senha', msg: 'A senha precisa ter pelo menos 4 caracteres.' });
 
         const rec = atual ? { ...atual } : { criado: agora, v: 0 };
-        rec.nome = nome; rec.deps = deps; rec.ativo = ativo;
+        rec.nome = nome; rec.deps = deps; rec.ativo = ativo; rec.exporta = exporta;
         if (senha) { Object.assign(rec, L.hashSenha(senha)); }
         if (!novo && (senha || (atual.ativo && !ativo))) rec.v = (rec.v || 0) + 1;   // derruba sessões abertas
 
         const mud = [];
-        if (novo) mud.push('Criou o usuário ' + nome + ' (' + login + ') com setores: ' + L.nomesDeps(deps));
+        if (novo) mud.push('Criou o usuário ' + nome + ' (' + login + ') com setores: ' + L.nomesDeps(deps) + (exporta ? ' e download da contagem' : ''));
         else {
           if (atual.nome !== nome) mud.push('Renomeou ' + atual.nome + ' para ' + nome);
           if (JSON.stringify(atual.deps || []) !== JSON.stringify(deps)) mud.push('Setores de ' + nome + ': ' + L.nomesDeps(deps));
           if (atual.ativo !== ativo) mud.push((ativo ? 'Liberou' : 'Bloqueou') + ' o acesso de ' + nome);
+          if (!!atual.exporta !== exporta) mud.push((exporta ? 'Liberou' : 'Retirou') + ' o download da contagem para ' + nome);
           if (senha) mud.push('Trocou a senha de ' + nome);
         }
         const cmds = [['HSET', 'usuarios', login, JSON.stringify(rec)]];

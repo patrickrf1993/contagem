@@ -1,7 +1,15 @@
 const L = require('./_lib');
 const num = v => (typeof v === 'number' && isFinite(v) && v >= 0) ? v : null;
-const mesmo = (a, b) => (!a && !b) || (a && b && a.total === b.total && (a.m || null) === (b.m || null) && a.q === b.q);
-const resumo = r => r ? { total: r.total, q: r.q, m: r.m || null, by: r.by || '' } : null;
+const mesmo = (a, b) => (!a && !b) || (a && b && a.total === b.total && (a.m || null) === (b.m || null) && a.q === b.q && JSON.stringify(a.p || null) === JSON.stringify(b.p || null));
+const resumo = r => r ? { total: r.total, q: r.q, m: r.m || null, p: r.p || undefined, by: r.by || '' } : null;
+// parcelas somadas (ex.: 10 + 2 volumes); só guarda se baterem com a quantidade
+function parcelas(p, q) {
+  if (!Array.isArray(p) || p.length < 2 || p.length > 100) return undefined;
+  const ok = p.map(num);
+  if (ok.some(x => x === null)) return undefined;
+  const soma = ok.reduce((a, b) => a + b, 0);
+  return Math.abs(soma - q) < 1e-6 * Math.max(1, q) ? ok : undefined;
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -18,23 +26,37 @@ module.exports = async (req, res) => {
     const pode = k => u.deps.includes(k.split(':')[0]);
 
     if (req.method === 'GET') {
-      const [v] = await L.redis([['GET', kVer]]);
+      const [v, cv] = await L.redis([['GET', kVer], ['GET', 'catalogo:v']]);
       const ver = Number(v || 0);
-      if (req.query.v !== undefined && String(ver) === String(req.query.v)) return res.status(200).json({ v: ver, perfil: L.perfil(u) });
-      const [flat, v2] = await L.redis([['HGETALL', kItens], ['GET', kVer]]);
+      // lista de insumos enviada pelo administrador (só vai quando mudou)
+      let catalogo;
+      if (cv && String(cv) !== String(req.query.cv || '')) {
+        const [c] = await L.redis([['GET', 'catalogo']]);
+        try {
+          const cat = JSON.parse(c || 'null');
+          if (cat && cat.itens) {
+            const itens = {}; u.deps.forEach(d => { if (cat.itens[d]) itens[d] = cat.itens[d]; });
+            catalogo = { v: String(cv), t: cat.t, por: cat.por, itens };
+          }
+        } catch (e) {}
+      }
+      if (req.query.v !== undefined && String(ver) === String(req.query.v)) return res.status(200).json({ v: ver, perfil: L.perfil(u), catalogo });
+      const [flat, v2, fflat] = await L.redis([['HGETALL', kItens], ['GET', kVer], ['HGETALL', 'fatores']]);
+      const fatores = {};
+      for (let i = 0; i + 1 < (fflat || []).length; i += 2) { if (pode(fflat[i])) { const n = Number(fflat[i + 1]); if (isFinite(n)) fatores[fflat[i]] = n; } }
       const itens = {};
       for (let i = 0; i + 1 < (flat || []).length; i += 2) {
         if (!pode(flat[i])) continue;
         try { itens[flat[i]] = JSON.parse(flat[i + 1]); } catch (e) {}
       }
-      return res.status(200).json({ v: Number(v2 || 0), itens, perfil: L.perfil(u) });
+      return res.status(200).json({ v: Number(v2 || 0), itens, fatores, perfil: L.perfil(u), catalogo });
     }
 
     if (req.method === 'POST') {
       const entradas = Object.entries(b.itens || {});
       if (!entradas.length || entradas.length > 200) return res.status(400).json({ erro: 'itens' });
       for (const [k] of entradas) {
-        if (!/^[A-Z]{2,12}:r\d{1,4}$/.test(k)) return res.status(400).json({ erro: 'chave' });
+        if (!/^[A-Z]{2,12}:(r\d{1,4}|c[A-Za-z0-9._-]{1,30})$/.test(k)) return res.status(400).json({ erro: 'chave' });
         if (!pode(k)) return res.status(403).json({ erro: 'setor', setor: k.split(':')[0] });
       }
       const chaves = entradas.map(([k]) => k);
@@ -58,9 +80,11 @@ module.exports = async (req, res) => {
           const total = num(val.total), q = num(val.q), m = val.m == null ? null : num(val.m);
           if (total === null || q === null) return;
           depois = { q, m, total, by: u.nome, u: u.login, t: agora, tc };
+          const pp = parcelas(val.p, q); if (pp) depois.p = pp;
         }
         if (mesmo(antes, depois)) return;
         cmds.push(depois ? ['HSET', kItens, k, JSON.stringify(depois)] : ['HDEL', kItens, k]);
+        if (depois && depois.m) cmds.push(['HSET', 'fatores', k, String(depois.m)]);   // lembra a quantidade por volume
         cmds.push(...L.cmdsLog({ t: agora, u: u.login, nome: u.nome, acao: !antes ? 'contou' : (!depois ? 'apagou' : 'alterou'), data, k, antes: resumo(antes), depois: resumo(depois), obs,
           tc: tc < agora - 60000 ? tc : undefined }));
       });

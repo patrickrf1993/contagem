@@ -59,6 +59,14 @@ li.flash .in input{background:var(--accent-soft)}
 .x{border:0;background:none;color:var(--muted);font-size:12.5px;padding:4px 0 0;text-decoration:underline;text-underline-offset:2px}
 .vol{display:none;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;background:var(--soft);border-radius:10px;font-variant-numeric:tabular-nums}
 li.multi .vol{display:flex}
+.vol{flex-wrap:wrap}
+.links{display:flex;gap:14px;flex-wrap:wrap}
+.soma{display:none;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px dashed var(--accent);border-radius:10px}
+li.somando .soma{display:flex}
+.soma input{width:90px;text-align:right;font-size:17px;font-weight:600;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px}
+.soma button{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:0 14px;min-height:40px;font-weight:600}
+.soma small,.parc{color:var(--muted);font-size:12.5px}
+.parc{margin-top:4px;font-variant-numeric:tabular-nums}
 .vol input{width:80px;text-align:right;font-size:17px;font-weight:600;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px}
 .vol .eq{margin-left:auto;font-weight:600}
 .vol small{color:var(--muted)}
@@ -114,6 +122,15 @@ label{display:block;font-size:14px;margin:12px 0 4px}
 .tag{display:inline-block;font-size:12px;font-weight:650;border-radius:6px;padding:1px 7px;margin:0 4px}
 .t-contou{background:var(--ok-soft);color:var(--ok)} .t-alterou{background:var(--warn-soft);color:var(--warn)}
 .t-apagou{background:var(--err-soft);color:var(--err)} .t-descartado{background:var(--warn-soft);color:var(--warn)} .t-recusado{background:var(--err-soft);color:var(--err)} .t-usuario,.t-entrou{background:var(--soft);color:var(--muted)}
+.hint{color:var(--muted);font-size:14px;margin:4px 0 10px}
+.diff{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0 14px;background:var(--soft)}
+.diff h3{margin:0 0 6px;font-size:16px}
+.diff .dep{display:block;padding:0;color:var(--ink);font-weight:650;margin-top:8px}
+.diff ul{padding:0 0 0 18px;margin:4px 0;list-style:disc}
+.diff li{font-size:14px;margin:2px 0}
+.add{color:var(--ok)} .rem{color:var(--err)} .chg{color:var(--warn)}
+.ci{display:grid;grid-template-columns:110px 1fr auto auto;gap:4px 12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;font-variant-numeric:tabular-nums}
+.ci .c{color:var(--muted)} .ci .u{width:auto}
 .dayhead{font-size:13px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:16px 0 4px}
 
 dialog{border:0;border-radius:16px;padding:20px;width:min(92vw,440px);background:var(--bg);color:var(--ink)}
@@ -176,6 +193,7 @@ dialog h2{margin:0 0 4px;font-size:18px}
       <div class="seg" role="tablist">
         <button role="tab" id="tabUsers" aria-selected="true">Usuários</button>
         <button role="tab" id="tabLog" aria-selected="false">Relatório</button>
+        <button role="tab" id="tabCat" aria-selected="false">Insumos</button>
       </div>
     </div>
   </header>
@@ -183,6 +201,14 @@ dialog h2{margin:0 0 4px;font-size:18px}
     <div id="pUsers">
       <div class="toolbar"><p id="usersInfo"></p><button class="send" id="newUserBtn">Novo usuário</button></div>
       <div class="users" id="users"></div>
+    </div>
+    <div id="pCat" hidden>
+      <div class="toolbar"><p id="catInfo">Carregando…</p>
+        <label class="send" style="display:inline-flex;align-items:center;margin:0;cursor:pointer">Enviar lista<input type="file" id="catFile" accept=".csv,text/csv" hidden></label></div>
+      <p class="hint">Na planilha de estoque, rode a macro <b>ExportarInsumos</b> (Alt+F8) e envie aqui o arquivo gerado. A lista da página passa a ser a mesma das abas STK, em todos os celulares.</p>
+      <div id="catDiff"></div>
+      <div class="filters" style="grid-template-columns:1fr"><select id="catDep" aria-label="Setor"></select></div>
+      <div class="log" id="catList"></div>
     </div>
     <div id="pLog" hidden>
       <div class="toolbar"><p>Movimentações dos últimos 5 dias. Registros mais antigos são apagados automaticamente.</p><button class="ghost" id="logCsv">Baixar relatório</button></div>
@@ -228,15 +254,40 @@ const DEPS = [
   {id:'EMBALAGEM', aba:'STK EMBALAGEM', nome:'Embalagem', dep:'3023'}
 ];
 const DEPNOME = Object.fromEntries(DEPS.map(d=>[d.id,d.nome]));
-const ITEM = {}; DEPS.forEach(d=>CAT[d.id].forEach(it=>ITEM[d.id+':r'+it[0]]={nome:it[2],und:it[3],cod:it[1]}));
+// Lista embutida (usada só até chegar a lista enviada pelo administrador) e mapa das chaves antigas (por linha) para o código.
+const LEG={}; DEPS.forEach(d=>CAT[d.id].forEach(it=>LEG[d.id+':r'+it[0]]=d.id+':c'+it[1]));
+const nk=k=>LEG[k]||k;
+const nkObj=o=>{ const r={}; Object.keys(o||{}).forEach(k=>r[nk(k)]=o[k]); return r; };
+const catBase=()=>{ const r={}; DEPS.forEach(d=>r[d.id]=CAT[d.id].map(it=>({c:String(it[1]),n:it[2],u:it[3],f:it[4]}))); return r; };
+let LISTA=catBase(), ITEM={};
+function montarItem(){ ITEM={}; DEPS.forEach(d=>CAT[d.id].forEach(it=>ITEM[d.id+':c'+it[1]]={nome:it[2],und:it[3],cod:String(it[1])}));
+  DEPS.forEach(d=>(LISTA[d.id]||[]).forEach(it=>ITEM[d.id+':c'+it.c]={nome:it.n,und:it.u,cod:it.c})); }
+montarItem();
 const POLL_MS = 5000;
 const $=s=>document.querySelector(s);
 const el=(tag,cls,txt)=>{const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e;};
 const fmt=(n,d=3)=>(n==null||isNaN(n))?'':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:d});
 const round=n=>Math.round(n*1e6)/1e6;
-function num(s){ if(s==null) return null; s=String(s).trim().replace(/\s/g,''); if(!s) return null;
-  if(s.includes(',')&&s.includes('.')) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(',','.');
-  const n=Number(s); return isFinite(n)&&n>=0?n:NaN; }
+// Lê números no padrão brasileiro: vírgula = decimal. Ponto com grupos de 3 dígitos = milhar
+// (1.700 = 1700), exceto em TO/TOD com um único ponto (13.884 t). Aceita somas: 10+2.
+const ehTon=u=>/^TO/i.test(String(u||''));
+function num1(s,und){
+  if(!s) return null;
+  if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.');
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s) && !(ehTon(und) && (s.match(/\./g)||[]).length===1)) s=s.replace(/\./g,'');
+  const n=Number(s); return isFinite(n)&&n>=0?n:NaN;
+}
+function num(s,und){
+  if(s==null) return null; s=String(s).trim().replace(/\s/g,''); if(!s) return null;
+  const partes=s.split('+').filter(x=>x!=='');
+  if(!partes.length) return null;
+  let t=0; for(const x of partes){ const n=num1(x,und); if(n==null||isNaN(n)) return NaN; t+=n; }
+  return round(t);
+}
+function partes(s,und){ s=String(s||'').replace(/\s/g,''); return s.split('+').filter(Boolean).map(x=>num1(x,und)).filter(n=>n!=null&&!isNaN(n)); }
+// valor dentro dos campos: sem separador de milhar, para não ser relido errado
+const fin=n=>(n==null||isNaN(n))?'':Number(n).toLocaleString('pt-BR',{useGrouping:false,maximumFractionDigits:6});
+const ftot=(n,und)=>(n==null||isNaN(n))?'':Number(n).toLocaleString('pt-BR',ehTon(und)?{minimumFractionDigits:3,maximumFractionDigits:3}:{maximumFractionDigits:3});
 const dstr=d=>{const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());};
 const today=()=>dstr(new Date());
 const br=s=>s.split('-').reverse().join('/');
@@ -246,22 +297,28 @@ const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}
 
 const S={date:today(), dep:ls.get('dep','ALMOX'), q:'', pend:false,
   token:ls.get('token',''), me:ls.get('perfil',null), remote:{}, ver:null,
-  pending:{}, sending:false, view:null, online:true};
+  pending:{}, sending:false, view:null, online:true, fatores:{}};
 const pendKey=()=>'pend:'+(S.me?S.me.login:'');
 function loadPending(){
   S.pending = S.me ? ls.get(pendKey(),{}) : {};
+  for(const d in S.pending) S.pending[d]=nkObj(S.pending[d]);
   const velho=ls.get('pendentes',null); // versão anterior
   if(velho && S.me){ for(const d in velho){ S.pending[d]={...(velho[d]||{}),...(S.pending[d]||{})}; } ls.del('pendentes'); savePending(); }
 }
 function savePending(){ if(S.me) ls.set(pendKey(),S.pending); }
 const nPend=()=>Object.values(S.pending).reduce((a,o)=>a+Object.keys(o||{}).length,0);
 function cacheRemote(){ if(S.me) ls.set('remoto:'+S.me.login,{date:S.date,itens:S.remote}); }
-function loadRemoteCache(){ const c=S.me&&ls.get('remoto:'+S.me.login,null); S.remote=(c&&c.date===S.date)?c.itens:{}; }
-const K=(dep,row)=>dep+':r'+row;
+function loadFatores(){ S.fatores=nkObj((S.me&&ls.get('fatores:'+S.me.login,{}))||{}); }
+function loadLista(){ const c=S.me&&ls.get('lista:'+S.me.login,null); LISTA=c&&c.itens?{...catBase(),...c.itens}:catBase(); S.cv=c?c.v:''; montarItem(); }
+function aplicarLista(c){ if(!c||!c.itens) return; ls.set('lista:'+S.me.login,c); LISTA={...catBase(),...c.itens}; S.cv=c.v; montarItem();
+  if(S.view==='count'){ build(); toast('Lista de insumos atualizada'); } }
+function loadRemoteCache(){ const c=S.me&&ls.get('remoto:'+S.me.login,null); S.remote=(c&&c.date===S.date)?nkObj(c.itens):{}; }
+const K=(dep,cod)=>dep+':c'+cod;
+const lista=id=>LISTA[id]||[];
 const has=v=>!!(v&&v.total!=null&&!isNaN(v.total));
 function val(key){ const p=S.pending[S.date]; if(p && key in p) return p[key]&&p[key].vazio?null:p[key]; return S.remote[key]; }
 const myDeps=()=>DEPS.filter(d=>S.me && S.me.deps.includes(d.id));
-const nDone=id=>CAT[id].filter(it=>has(val(K(id,it[0])))).length;
+const nDone=id=>lista(id).filter(it=>has(val(K(id,it.c)))).length;
 function setLive(kind,txt){ const l=$('#live'); l.className='live'+(kind?' '+kind:''); $('#liveTxt').textContent=txt; }
 
 /* ---------- servidor ---------- */
@@ -296,11 +353,13 @@ async function poll(){
   pollBusy=true; const date=S.date;
   try{
     await flush();
-    const params={data:date}; if(S.ver!=null) params.v=S.ver;
+    const params={data:date, cv:S.cv||''}; if(S.ver!=null) params.v=S.ver;
     const j=await api('contagem','GET',params);
     applyPerfil(j.perfil);
     if(date!==S.date) return;
-    if(j.itens){ const before=S.remote; S.remote=j.itens; S.ver=j.v; cacheRemote(); applyRemote(before); } else S.ver=j.v;
+    if(j.catalogo) aplicarLista(j.catalogo);
+    if(j.fatores){ S.fatores=nkObj(j.fatores); if(S.me) ls.set('fatores:'+S.me.login,S.fatores); }
+    if(j.itens){ const before=S.remote; S.remote=nkObj(j.itens); S.ver=j.v; cacheRemote(); applyRemote(before); } else S.ver=j.v;
     S.online=true; const np=nPend();
     setLive(np?'busy':'', np?('Enviando '+np+' item(s)…'):'Ao vivo · atualizado '+hora(Date.now()));
     if(S.wasOff){ S.wasOff=false; nodes.forEach(li=>li._sync()); }
@@ -359,7 +418,7 @@ function tabs(){
   let all=0,tot=0;
   mine.forEach(d=>{
     const b=el('button','dep',d.nome); b.setAttribute('role','tab');
-    const n=nDone(d.id), t=CAT[d.id].length; all+=n; tot+=t;
+    const n=nDone(d.id), t=lista(d.id).length; all+=n; tot+=t;
     b.append(el('span',null,n+'/'+t)); b.classList.toggle('full',n===t);
     b.setAttribute('aria-selected',d.id===S.dep);
     b.onclick=()=>{S.dep=d.id; ls.set('dep',d.id); build(); scrollTo({top:0});};
@@ -369,9 +428,9 @@ function tabs(){
   if(mine.length){ const d=DEPS.find(x=>x.id===S.dep); p.append(el('b',null,all+' de '+tot),' contados'+(mine.length>1?' nos seus setores':'')+' · dep. '+d.dep); }
 }
 function match(it){
-  if(S.pend && has(val(K(S.dep,it[0])))) return false;
+  if(S.pend && has(val(K(S.dep,it.c)))) return false;
   const q=S.q.trim().toLowerCase(); if(!q) return true;
-  return it[2].toLowerCase().includes(q)||String(it[1]).includes(q);
+  return it.n.toLowerCase().includes(q)||String(it.c).toLowerCase().includes(q);
 }
 const nodes=new Map();
 function build(){
@@ -379,9 +438,9 @@ function build(){
   const ul=$('#list'); ul.innerHTML='';
   $('.find').hidden=!myDeps().length;
   if(!myDeps().length){ ul.append(el('li','none','Nenhum setor de contagem liberado para você ainda. Fale com o administrador.')); return; }
-  const items=CAT[S.dep].filter(match);
+  const items=lista(S.dep).filter(match);
   if(!items.length){ ul.append(el('li','none',S.pend&&!S.q?'Tudo contado neste depósito.':'Nenhum insumo com esse nome ou código.')); return; }
-  items.forEach(it=>{ const li=item(it); nodes.set(K(S.dep,it[0]),li); ul.append(li); });
+  items.forEach(it=>{ const li=item(it); nodes.set(K(S.dep,it.c),li); ul.append(li); });
 }
 function applyRemote(before){
   tabs();
@@ -394,43 +453,85 @@ function applyRemote(before){
   });
 }
 function item(it){
-  const [row,cod,nome,und,fator]=it, key=K(S.dep,row);
+  const cod=it.c, nome=it.n, und=it.u, fatorCat=it.f, key=K(S.dep,it.c);
   const li=el('li','it');
-  li.innerHTML='<div class="row"><div class="txt"><div class="nm"></div><div class="sub"></div><button class="x" type="button">Contar por volumes</button></div>'+
+  li.innerHTML='<div class="row"><div class="txt"><div class="nm"></div><div class="sub"></div>'+
+    '<div class="links"><button class="x" type="button">Contar por volumes</button><button class="x add" type="button">+ Somar</button></div></div>'+
     '<div class="in"><input class="q" inputmode="decimal" enterkeyhint="next" aria-label="Quantidade"><span class="u"></span></div></div>'+
-    '<div class="vol"><input class="v" inputmode="decimal" enterkeyhint="next" aria-label="Volumes"><small>volumes ×</small><input class="f" inputmode="decimal" aria-label="Quantidade por volume"><span class="eq"></span></div>';
+    '<div class="vol"><input class="v" inputmode="decimal" enterkeyhint="next" aria-label="Volumes"><small>volumes ×</small><input class="f" inputmode="decimal" aria-label="Quantidade por volume"><span class="eq"></span></div>'+
+    '<div class="soma"><small class="sl">Somar</small><input class="s" inputmode="decimal" enterkeyhint="done" aria-label="Quantidade a somar"><button type="button">Somar</button><small class="sh"></small></div>'+
+    '<div class="parc"></div>';
   li.querySelector('.nm').textContent=nome;
   li.querySelector('.u').textContent=und;
-  const q=li.querySelector('.q'), v=li.querySelector('.v'), f=li.querySelector('.f'), x=li.querySelector('.x'), eq=li.querySelector('.eq');
-  const setMulti=on=>{ li.classList.toggle('multi',on); q.readOnly=on; x.textContent=on?'Digitar quantidade direta':'Contar por volumes'; };
-  const live=()=>{ const a=num(v.value), b=num(f.value); eq.textContent=(a!=null&&!isNaN(a)&&b!=null&&!isNaN(b))?'= '+fmt(round(a*b))+' '+und:''; };
+  const q=li.querySelector('.q'), v=li.querySelector('.v'), f=li.querySelector('.f'), x=li.querySelector('.x'), add=li.querySelector('.add'),
+        eq=li.querySelector('.eq'), sIn=li.querySelector('.s'), sBtn=li.querySelector('.soma button'), parc=li.querySelector('.parc');
+  const fatorPadrao=()=> (S.fatores[key]!=null ? S.fatores[key] : fatorCat);
+  const multi=()=>li.classList.contains('multi');
+  const setMulti=on=>{ li.classList.toggle('multi',on); q.readOnly=on; x.textContent=on?'Digitar quantidade direta':'Contar por volumes';
+    li.querySelector('.sl').textContent=on?'Somar volumes':'Somar'; };
+  const live=()=>{ const a=num(v.value,und), b=num(f.value,und); eq.textContent=(a!=null&&!isNaN(a)&&b!=null&&!isNaN(b))?'= '+ftot(round(a*b),und)+' '+und:''; };
+  const showParc=cur=>{ const p=cur&&cur.p; parc.textContent=(p&&p.length>1)?('Parcelas: '+p.map(n=>fmt(n,6)).join(' + ')+' = '+fmt(p.reduce((a,b)=>a+b,0),6)+(cur.m?' volumes':' '+und)):''; };
   li._sync=()=>{
     const cur=val(key), s=li.querySelector('.sub'); s.textContent=cod;
     const pend=S.pending[S.date] && key in S.pending[S.date];
     li.classList.toggle('done',has(cur)); li.classList.toggle('waiting',!!pend);
     if(has(cur)) s.append(el('span',pend?'pend':'ok', pend?(S.online?'  · enviando…':'  · guardado, aguardando sinal'):'  ✓ '+(cur.by||'contado')+(cur.t?' às '+hora(cur.t):'')));
     else if(pend) s.append(el('span','pend', S.online?'  · apagando…':'  · apagado, aguardando sinal'));
-    const a=document.activeElement; if(a===q||a===v||a===f) return;
+    showParc(has(cur)?cur:null);
+    const a=document.activeElement; if(a===q||a===v||a===f||a===sIn) return;
     if(has(cur)){
-      q.value=fmt(cur.total,6);
-      if(cur.m){ setMulti(true); v.value=fmt(cur.q,6); f.value=fmt(cur.m,6); live(); }
-      else if(li.classList.contains('multi')){ setMulti(false); v.value=''; eq.textContent=''; }
-    } else { q.value=''; if(li.classList.contains('multi')){ v.value=''; eq.textContent=''; } }
+      q.value=fin(cur.total);
+      if(cur.m){ setMulti(true); v.value=fin(cur.q); f.value=fin(cur.m); live(); }
+      else if(multi()){ setMulti(false); v.value=''; eq.textContent=''; }
+    } else {
+      q.value=''; v.value=''; eq.textContent='';
+      const fp=fatorPadrao(); if(fp!=null && !f.value) f.value=fin(fp);
+      // quem já contou este item por volumes antes já abre no modo volumes, com a quantidade por volume guardada
+      if(S.fatores[key]!=null && !multi()) setMulti(true);
+    }
   };
-  if(fator) f.value=fmt(fator,6);
+  { const fp=fatorPadrao(); if(fp!=null) f.value=fin(fp); }
   li._sync();
-  q.addEventListener('change',()=>{ const n=num(q.value);
+
+  function gravarDireto(total, p){ put(key,{q:total,m:null,total,p:(p&&p.length>1)?p:undefined}); li._sync(); }
+  function gravarVol(vol, m, p){ const t=round(vol*m); put(key,{q:vol,m,total:t,p:(p&&p.length>1)?p:undefined}); q.value=fin(t); li._sync(); }
+
+  q.addEventListener('change',()=>{ const n=num(q.value,und);
     if(n===null){ put(key,null); return li._sync(); }
-    if(isNaN(n)){ toast('Digite só números'); q.value=''; return; }
-    q.value=fmt(n,6); put(key,{q:n,m:null,total:n}); li._sync(); });
-  const calc=()=>{ const a=num(v.value), b=num(f.value);
-    if(a===null){ put(key,null); return li._sync(); }
+    if(isNaN(n)){ toast('Digite só números. Use vírgula para decimais, ex.: 1,5'); q.value=''; return; }
+    gravarDireto(n, partes(q.value,und)); });
+  const calc=()=>{ const a=num(v.value,und), b=num(f.value,und);
+    if(a===null){ if(has(val(key))){ put(key,null); li._sync(); } return; }
     if(isNaN(a)||b===null||isNaN(b)){ toast('Informe volumes e quantidade por volume'); return; }
-    const t=round(a*b); q.value=fmt(t,6); put(key,{q:a,m:b,total:t}); li._sync(); };
+    gravarVol(a,b,partes(v.value,und)); };
   v.addEventListener('input',live); f.addEventListener('input',live);
   v.addEventListener('change',calc); f.addEventListener('change',calc);
-  x.onclick=()=>{ const on=!li.classList.contains('multi'); setMulti(on);
-    if(on){ v.focus(); } else { v.value=''; eq.textContent=''; if(has(val(key))&&val(key).m){ q.value=''; put(key,null); li._sync(); } q.focus(); } };
+
+  // somar parcelas: 10 volumes + 2 encontrados depois = 12
+  function somar(){
+    const n=num(sIn.value,und);
+    if(n==null||isNaN(n)||n===0){ sIn.focus(); return; }
+    const cur=val(key);
+    if(multi()){
+      const b=num(f.value,und); if(b==null||isNaN(b)){ toast('Informe a quantidade por volume'); f.focus(); return; }
+      const base=has(cur)&&cur.m?(cur.p||[cur.q]):(num(v.value,und)?partes(v.value,und):[]);
+      const p=base.concat(partes(sIn.value,und)), vol=round(p.reduce((a,c)=>a+c,0));
+      v.value=fin(vol); gravarVol(vol,b,p); live();
+    } else {
+      const base=has(cur)&&!cur.m?(cur.p||[cur.total]):(num(q.value,und)?partes(q.value,und):[]);
+      const p=base.concat(partes(sIn.value,und)), tot=round(p.reduce((a,c)=>a+c,0));
+      q.value=fin(tot); gravarDireto(tot,p);
+    }
+    li.querySelector('.sh').textContent='+'+fmt(n,6)+' somado'; sIn.value=''; sIn.focus();
+  }
+  sBtn.onclick=somar;
+  sIn.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); somar(); } });
+  add.onclick=()=>{ const on=!li.classList.contains('somando'); li.classList.toggle('somando',on); add.textContent=on?'Fechar soma':'+ Somar';
+    li.querySelector('.sh').textContent=''; if(on) sIn.focus(); };
+
+  x.onclick=()=>{ const on=!multi(); setMulti(on);
+    if(on){ const fp=fatorPadrao(); if(fp!=null&&!f.value) f.value=fin(fp); v.focus(); }
+    else { v.value=''; eq.textContent=''; if(has(val(key))&&val(key).m){ q.value=''; put(key,null); li._sync(); } q.focus(); } };
   [q,v].forEach(e=>e.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); e.blur(); next(li); } }));
   return li;
 }
@@ -446,8 +547,12 @@ const clean=s=>String(s==null?'':s).replace(/[;\r\n]/g,' ');
 $('#dlBtn').onclick=async()=>{
   await poll();
   const out=['ABA;CODIGO;LINHA;CONTAGEM;FORMULA;DATA;RESPONSAVEL'];
-  DEPS.forEach(d=>CAT[d.id].forEach(it=>{ const v=val(K(d.id,it[0])); if(!has(v)) return;
-    out.push([d.aba,it[1],it[0],round(v.total),v.m?round(v.q)+'*'+round(v.m):'',br(S.date),clean(v.by)].join(';')); }));
+  const chaves=new Set(); DEPS.forEach(d=>lista(d.id).forEach(it=>chaves.add(K(d.id,it.c))));
+  Object.keys(S.remote).concat(Object.keys(S.pending[S.date]||{})).forEach(k=>chaves.add(k)); // inclui contados que saíram da lista
+  DEPS.forEach(d=>[...chaves].filter(k=>k.startsWith(d.id+':c')).forEach(k=>{ const v=val(k); if(!has(v)) return; const it={c:k.slice(d.id.length+2)};
+    const pp=v.p&&v.p.length>1?v.p.map(round):null;
+    const formula=v.m?((pp?'('+pp.join('+')+')':round(v.q))+'*'+round(v.m)):(pp?pp.join('+'):'');
+    out.push([d.aba,it.c,'',round(v.total),formula,br(S.date),clean(v.by)].join(';')); }));
   if(out.length===1){ toast('Nenhum item contado em '+br(S.date)); return; }
   download('contagem_'+S.date+'.csv', out); toast('Arquivo baixado ('+(out.length-1)+' itens)');
 };
@@ -474,7 +579,7 @@ $('#backBtn').onclick=()=>show('count');
 function show(v){
   S.view=v;
   $('#vLogin').hidden=v!=='login'; $('#vCount').hidden=v!=='count'; $('#vAdmin').hidden=v!=='admin';
-  if(v==='count'){ loadPending(); loadRemoteCache(); renderMe(); build(); S.ver=null; poll(); schedule(); }
+  if(v==='count'){ loadLista(); loadPending(); loadRemoteCache(); loadFatores(); renderMe(); build(); S.ver=null; poll(); schedule(); }
   else clearInterval(pollT);
   if(v==='admin') openTab(S.adminTab||'users');
   scrollTo({top:0});
@@ -523,12 +628,13 @@ $('#lgUser').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#lgPass').fo
 S.users=[];
 function openTab(t){
   S.adminTab=t;
-  $('#tabUsers').setAttribute('aria-selected',t==='users'); $('#tabLog').setAttribute('aria-selected',t==='log');
-  $('#pUsers').hidden=t!=='users'; $('#pLog').hidden=t!=='log';
-  if(t==='users') loadUsers(); else loadLog();
+  $('#tabUsers').setAttribute('aria-selected',t==='users'); $('#tabLog').setAttribute('aria-selected',t==='log'); $('#tabCat').setAttribute('aria-selected',t==='cat');
+  $('#pUsers').hidden=t!=='users'; $('#pLog').hidden=t!=='log'; $('#pCat').hidden=t!=='cat';
+  if(t==='users') loadUsers(); else if(t==='log') loadLog(); else loadCat();
 }
 $('#tabUsers').onclick=()=>openTab('users');
 $('#tabLog').onclick=()=>openTab('log');
+$('#tabCat').onclick=()=>openTab('cat');
 async function loadUsers(){
   $('#users').textContent='Carregando…';
   try{ const j=await api('admin','GET',{acao:'usuarios'}); S.users=j.usuarios; renderUsers(); }
@@ -629,7 +735,7 @@ function filtered(){
   const d=$('#fDia').value, u=$('#fUser').value, p=$('#fDep').value, a=$('#fAcao').value;
   return S.log.filter(e=>(!d||diaEv(e.t)===d)&&(!u||e.u===u)&&(!p||(e.k&&e.k.startsWith(p+':')))&&(!a||e.acao===a));
 }
-const vtxt=r=>r?fmt(r.total)+(r.m?' ('+fmt(r.q)+'×'+fmt(r.m)+')':''):'—';
+const vtxt=r=>r?fmt(r.total)+(r.m?' ('+(r.p&&r.p.length>1?'('+r.p.map(n=>fmt(n,6)).join('+')+')':fmt(r.q))+'×'+fmt(r.m)+')':(r.p&&r.p.length>1?' ('+r.p.map(n=>fmt(n,6)).join('+')+')':'')):'—';
 function renderLog(){
   const box=$('#log'); box.innerHTML='';
   const evs=filtered();
@@ -641,7 +747,7 @@ function renderLog(){
     const r=el('div','ev'); const t=el('time',null,hora(e.t)); t.dateTime=new Date(e.t).toISOString();
     const body=el('div');
     const line=el('div'); line.append(el('span','who',e.nome||e.u), el('span','tag t-'+e.acao, ACAO[e.acao]||e.acao));
-    if(e.k){ const it=ITEM[e.k]; line.append(el('span',null,it?it.nome:e.k));
+    if(e.k){ const it=ITEM[nk(e.k)]; line.append(el('span',null,it?it.nome:e.k));
       const w=el('div','what'); w.append((DEPNOME[e.k.split(':')[0]]||'')+' · contagem de '+br(e.data)+' · ');
       w.append(el('span','val',e.acao==='descartado'?('mantido '+vtxt(e.antes)+' · não usado '+vtxt(e.depois)+(it?' '+it.und:'')):(vtxt(e.antes)+' → '+vtxt(e.depois)+(it?' '+it.und:''))));
       if(e.acao!=='contou' && e.antes && e.antes.by && e.antes.by!==e.nome) w.append(' · antes contado por '+e.antes.by);
@@ -655,7 +761,7 @@ function renderLog(){
 $('#logCsv').onclick=()=>{
   const evs=filtered(); if(!evs.length){ toast('Nada para baixar com esses filtros'); return; }
   const out=['DATA_HORA;USUARIO;NOME;ACAO;SETOR;CODIGO;INSUMO;DATA_CONTAGEM;ANTES;DEPOIS;DETALHE;DIGITADO_EM'];
-  evs.forEach(e=>{ const it=e.k?ITEM[e.k]:null;
+  evs.forEach(e=>{ const it=e.k?ITEM[nk(e.k)]:null;
     out.push([new Date(e.t).toLocaleString('pt-BR'),e.u,clean(e.nome),e.acao,e.k?DEPNOME[e.k.split(':')[0]]:'',it?it.cod:'',clean(it?it.nome:''),e.data?br(e.data):'',
       e.antes?String(round(e.antes.total)).replace('.',','):'',e.depois?String(round(e.depois.total)).replace('.',','):'',clean([e.detalhe,e.obs].filter(Boolean).join(' · ')),e.tc?new Date(e.tc).toLocaleString('pt-BR'):''].join(';')); });
   download('relatorio_movimentacoes_'+today()+'.csv',out);
@@ -663,6 +769,74 @@ $('#logCsv').onclick=()=>{
 
 window.addEventListener('pagehide',()=>{ if(S.token && S.me && !S.me.admin && !nPend()) sair(S.token,true); });
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+
+/* ---------- administração: lista de insumos ---------- */
+const SETOR={}; DEPS.forEach(d=>{ SETOR[d.id]=d.id; SETOR[d.aba]=d.id; SETOR[d.nome.toUpperCase()]=d.id; SETOR[d.dep]=d.id; });
+SETOR['MÁQUINA']='MAQUINA';
+S.catAtual=null; S.catNovo=null;
+async function loadCat(){
+  $('#catInfo').textContent='Carregando…'; $('#catDiff').innerHTML='';
+  try{ const j=await api('admin','GET',{acao:'catalogo'}); S.catAtual=j.catalogo&&j.catalogo.itens?j.catalogo:null; renderCat(); }
+  catch(e){ if(!authFail(e)) $('#catInfo').textContent='Não foi possível carregar a lista.'; }
+}
+const listaAtual=()=>S.catAtual?{...catBase(),...S.catAtual.itens}:catBase();
+function renderCat(){
+  const L0=listaAtual(), tot=DEPS.reduce((a,d)=>a+(L0[d.id]||[]).length,0);
+  $('#catInfo').textContent = S.catAtual ? (tot+' insumos · lista enviada por '+S.catAtual.por+' em '+new Date(S.catAtual.t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))
+    : (tot+' insumos · lista original da página (nenhuma lista enviada ainda)');
+  const sel=$('#catDep'), keep=sel.value; sel.innerHTML='';
+  DEPS.forEach(d=>sel.append(new Option(d.nome+' ('+(L0[d.id]||[]).length+')',d.id))); sel.value=keep||DEPS[0].id;
+  const box=$('#catList'); box.innerHTML='';
+  (L0[sel.value]||[]).forEach(it=>{ const r=el('div','ci'); r.append(el('span','c',it.c),el('span',null,it.n),el('span','u',it.u||''),el('span','c',it.f?'vol. '+fmt(it.f,6):'')); box.append(r); });
+}
+$('#catDep').addEventListener('change',renderCat);
+function lerLinhasCSV(txt){
+  txt=txt.replace(/^\ufeff/,''); const linhas=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(!linhas.length) throw new Error('Arquivo vazio.');
+  const sep=linhas[0].includes(';')?';':',';
+  const cab=linhas[0].split(sep).map(x=>x.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+  const col=n=>cab.findIndex(h=>h===n||h.startsWith(n));
+  const iS=col('SETOR'), iC=col('CODIGO'), iN=col('NOME'), iU=col('UND'), iF=col('FATOR');
+  if(iS<0||iC<0) throw new Error('O arquivo precisa das colunas SETOR e CODIGO. Use o arquivo gerado pela macro ExportarInsumos.');
+  const itens={}, erros=[];
+  linhas.slice(1).forEach((l,n)=>{ const p=l.split(sep); const c=String(p[iC]||'').trim(); if(!c) return;
+    const d=SETOR[String(p[iS]||'').trim().toUpperCase()];
+    if(!d){ erros.push('linha '+(n+2)+': setor "'+p[iS]+'" desconhecido'); return; }
+    const fRaw=iF>=0?String(p[iF]||'').trim():''; const f=fRaw?Number(fRaw.replace(',','.')):null;
+    (itens[d]||=[]).push({c, n:iN>=0?String(p[iN]||'').trim():c, u:iU>=0?String(p[iU]||'').trim():'', f:f&&isFinite(f)&&f>0?f:null}); });
+  if(erros.length) throw new Error(erros.slice(0,5).join('\n'));
+  return itens;
+}
+$('#catFile').addEventListener('change',async e=>{
+  const file=e.target.files[0]; e.target.value=''; if(!file) return;
+  let itens; try{ itens=lerLinhasCSV(await file.text()); }catch(err){ toast(err.message); return; }
+  const antes=listaAtual(); S.catNovo=itens;
+  const box=$('#catDiff'); box.innerHTML=''; const d0=el('div','diff'); d0.append(el('h3',null,'Conferir antes de atualizar'));
+  let nAdd=0,nRem=0,nChg=0; const resumo=[];
+  DEPS.forEach(d=>{
+    const a=new Map((antes[d.id]||[]).map(x=>[x.c,x])), b=new Map((itens[d.id]||[]).map(x=>[x.c,x]));
+    const add=[...b.values()].filter(x=>!a.has(x.c)), rem=[...a.values()].filter(x=>!b.has(x.c));
+    const chg=[...b.values()].filter(x=>a.has(x.c)&&(a.get(x.c).n!==x.n||String(a.get(x.c).u||'')!==x.u||(a.get(x.c).f||null)!==(x.f||null)));
+    if(!itens[d.id]){ d0.append(el('span','dep',d.nome+': não veio no arquivo, a lista atual será mantida')); return; }
+    nAdd+=add.length; nRem+=rem.length; nChg+=chg.length;
+    if(!add.length&&!rem.length&&!chg.length){ d0.append(el('span','dep',d.nome+': sem mudanças ('+b.size+' itens)')); return; }
+    d0.append(el('span','dep',d.nome+' ('+b.size+' itens)')); const ul=el('ul');
+    add.forEach(x=>ul.append(el('li','add','+ '+x.c+' · '+x.n)));
+    rem.forEach(x=>ul.append(el('li','rem','− '+x.c+' · '+x.n)));
+    chg.forEach(x=>ul.append(el('li','chg','✎ '+x.c+' · '+x.n)));
+    d0.append(ul); resumo.push(d.nome+': +'+add.length+' −'+rem.length+(chg.length?' ✎'+chg.length:''));
+  });
+  const acts=el('div','acts'); const cancel=el('button','ghost','Cancelar'), ok=el('button','send','Atualizar lista');
+  cancel.onclick=()=>{ box.innerHTML=''; S.catNovo=null; };
+  ok.onclick=async()=>{ ok.disabled=true;
+    const final={...listaAtual(),...itens};
+    try{ const j=await api('admin','POST',null,{acao:'catalogo',itens:final,resumo:resumo.join('; ')||'sem mudanças'});
+      box.innerHTML=''; toast('Lista atualizada: '+j.total+' insumos. Os celulares recebem em segundos.'); loadCat(); }
+    catch(err){ if(!authFail(err)) toast(err.message); ok.disabled=false; } };
+  d0.append(el('p','hint','Itens removidos somem da tela de contagem. O que já foi contado deles continua no relatório.'));
+  acts.append(cancel,ok); d0.append(acts); box.append(d0);
+  if(!nAdd&&!nRem&&!nChg) toast('O arquivo é igual à lista atual.');
+});
 /* ---------- início ---------- */
 $('#date').value=S.date;
 $('#date').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; loadRemoteCache(); S.ver=null; build(); poll(); };

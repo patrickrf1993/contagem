@@ -20,6 +20,11 @@ module.exports = async (req, res) => {
         lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         return res.status(200).json({ mestre: L.perfil(u), usuarios: lista });
       }
+      if (acao === 'catalogo') {
+        const [c, cv] = await L.redis([['GET', 'catalogo'], ['GET', 'catalogo:v']]);
+        let cat = null; try { cat = JSON.parse(c || 'null'); } catch (e) {}
+        return res.status(200).json({ v: cv || null, catalogo: cat });
+      }
       if (acao === 'relatorio') {
         const dias = L.ultimosDias(L.LOG_DIAS);
         const out = await L.redis(dias.map(d => ['LRANGE', 'log:' + d, '0', '-1']));
@@ -33,6 +38,33 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
       const b = L.corpo(req);
+      const agora0 = Date.now();
+      if (b.acao === 'catalogo') { const agora = agora0;
+        // lista de insumos gerada pela macro ExportarInsumos: { DEP: [{c, n, u, f}] }
+        const entrada = b.itens && typeof b.itens === 'object' ? b.itens : null;
+        if (!entrada) return res.status(400).json({ erro: 'itens', msg: 'Arquivo sem itens.' });
+        const itens = {}; let total = 0;
+        for (const d of Object.keys(entrada)) {
+          if (!L.DEPS.includes(d)) return res.status(400).json({ erro: 'setor', msg: 'Setor desconhecido: ' + d });
+          const lista = Array.isArray(entrada[d]) ? entrada[d] : [];
+          const vistos = new Set(); itens[d] = [];
+          for (const it of lista) {
+            const c = String(it && it.c || '').trim();
+            if (!/^[A-Za-z0-9._-]{1,30}$/.test(c)) return res.status(400).json({ erro: 'codigo', msg: 'Código inválido em ' + d + ': "' + c + '"' });
+            if (vistos.has(c)) return res.status(400).json({ erro: 'duplicado', msg: 'Código repetido em ' + d + ': ' + c });
+            vistos.add(c);
+            const f = it.f == null || it.f === '' ? null : Number(it.f);
+            itens[d].push({ c, n: String(it.n || '').trim().slice(0, 120) || c, u: String(it.u || '').trim().slice(0, 12), f: f != null && isFinite(f) && f > 0 ? f : null });
+          }
+          total += itens[d].length;
+        }
+        if (!total || total > 3000) return res.status(400).json({ erro: 'itens', msg: 'A lista precisa ter entre 1 e 3000 itens.' });
+        const ver = String(agora);
+        const detalhe = 'Atualizou a lista de insumos (' + total + ' itens' + (b.resumo ? ': ' + String(b.resumo).slice(0, 300) : '') + ')';
+        await L.redis([['SET', 'catalogo', JSON.stringify({ t: agora, por: u.nome, itens })], ['SET', 'catalogo:v', ver]]
+          .concat(L.cmdsLog({ t: agora, u: u.login, nome: u.nome, acao: 'usuario', detalhe })));
+        return res.status(200).json({ ok: true, v: ver, total });
+      }
       const login = String(b.login || '').trim().toLowerCase();
       if (!/^[a-z0-9._-]{3,30}$/.test(login)) return res.status(400).json({ erro: 'login', msg: 'Use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado, sem espaço.' });
       if (login === L.ADMIN_U) return res.status(400).json({ erro: 'login', msg: 'Esse usuário é o administrador principal.' });

@@ -227,9 +227,97 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog h2{margin:0 0 4px;font-size:18px}
 .check{display:flex;align-items:center;gap:8px;font-size:14.5px;margin:12px 0 0}
 .check input{width:20px;height:20px}
-.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;display:none;z-index:30;max-width:90vw;white-space:pre-line}
+.toast{position:fixed;z-index:50;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;display:none;z-index:50;max-width:90vw;white-space:pre-line}
 .toast.on{display:block}
 
+
+/* usuários organizados por área */
+.ufil{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 14px}
+.ufil .busca{flex:1 1 220px;max-width:380px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:0 12px;min-height:42px}
+.ufil .sel{border:1px solid var(--line);background:var(--bg);min-height:42px}
+.useg{display:flex;gap:3px;background:var(--soft);border-radius:9px;padding:3px;overflow-x:auto;scrollbar-width:none}
+.useg button{flex:0 0 auto;border:0;background:none;border-radius:7px;padding:0 12px;min-height:36px;font-size:13.5px;color:var(--muted);white-space:nowrap}
+.useg button[aria-pressed=true]{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ugrp{background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.ugrp .gh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 14px;padding:14px 18px 12px}
+.ugrp .gh h2{display:inline;margin:0 10px 0 0;font-family:var(--serif);font-size:19px;font-weight:600}
+.ugrp .gh small{color:var(--muted);font-size:13.5px}
+.urow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
+.urow.g{background:var(--soft)}
+.urow.uhead{display:none}
+.up{display:flex;align-items:center;gap:12px;min-width:0}
+.up b{display:block;font-weight:600;line-height:1.25} .up small{color:var(--muted);font-size:13px}
+.av{width:36px;height:36px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--accent-soft);color:var(--accent)}
+.av.g{background:var(--side);color:#fff}
+.umeta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13.5px}
+.ued{grid-row:1;grid-column:2;min-height:38px;padding:0 14px;font-size:14px}
+.utipo{color:var(--muted)} .utipo.g{font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 10px;background:var(--side);color:#fff;white-space:nowrap}
+@media (prefers-color-scheme: dark){.utipo.g,.av.g{background:var(--accent);color:var(--on-accent)}}
+.usets{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.stag{font-size:12.5px;font-weight:500;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:1px 8px}
+.udl{color:var(--muted)} .udl.on{color:var(--ok);font-weight:500}
+.usit{display:flex;flex-direction:column}
+.usit small{color:var(--muted);font-size:12.5px}
+.s1{display:inline-flex;align-items:center;gap:7px;font-weight:500;color:var(--ink)}
+.s1 i{width:8px;height:8px;border-radius:50%;background:var(--muted);opacity:.6}
+.s1.on{color:var(--ok)} .s1.on i{background:var(--ok);opacity:1}
+.s1.off{color:var(--err)} .s1.off i{background:var(--err);opacity:1}
+@media (min-width:900px){
+  .urow,.urow.uhead{grid-template-columns:minmax(200px,1.4fr) 120px minmax(190px,1.6fr) 100px minmax(160px,1.1fr) 84px;gap:16px}
+  .urow.uhead{display:grid;padding:8px 18px;background:var(--soft);font-size:12.5px;font-weight:600;color:var(--muted)}
+  .urow.g{background:color-mix(in srgb,var(--accent-soft) 45%,var(--bg))}
+  .umeta{display:contents}
+  .ued{grid-row:auto;grid-column:auto;justify-self:end}
+  .utipo.g{justify-self:start}
+}
+/* painel lateral */
+#drawer{position:fixed;inset:0;z-index:40}
+#drawer .bg{position:absolute;inset:0;background:rgba(14,42,43,.42)}
+#drawer .dw{position:absolute;top:0;right:0;bottom:0;width:min(540px,100%);background:var(--bg);display:flex;flex-direction:column;box-shadow:-12px 0 32px rgba(0,0,0,.16);padding-top:env(safe-area-inset-top,0px)}
+.dwh{display:flex;align-items:flex-start;gap:14px;padding:18px 20px 14px;border-bottom:1px solid var(--line)}
+.dwh .av{width:46px;height:46px;font-size:15px}
+.dwt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dwt h2{margin:0;font-family:var(--serif);font-size:22px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.dwt small{color:var(--muted);font-size:13.5px}
+.dwt .s1{font-size:13.5px;margin-top:3px}
+.x0{width:44px;height:44px;border:0;background:none;border-radius:8px;color:var(--muted);flex:none}
+.x0:hover{background:var(--soft)}
+.dwb{flex:1;overflow-y:auto;padding:0 20px 10px;overscroll-behavior:contain}
+.dws{padding:16px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.dws:last-child{border-bottom:0}
+.dws h3{margin:0;font-size:15px;font-weight:600}
+.dwh3{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dwh3 small,.nota{color:var(--muted);font-size:12.5px}
+.dwg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:460px){.dwg.f{grid-template-columns:1fr}}
+.fl{display:flex;flex-direction:column;gap:5px;margin:0;font-size:13.5px;color:var(--muted)}
+.fl .field{color:var(--ink);font-size:15px;background:var(--bg)}
+.fl .field:disabled{background:var(--soft);color:var(--muted)}
+.opt{text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-height:44px}
+.opt[aria-checked=true]{border:1.5px solid var(--accent);background:var(--accent-soft)}
+.opt[aria-checked=true] b{color:var(--accent)}
+.opt small{font-size:12.5px;color:var(--muted)}
+.sbox{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;margin:0;font-size:14px}
+.sbox.on{border:1.5px solid var(--accent);background:var(--accent-soft)}
+.sbox.fora{border-style:dashed;background:var(--soft);cursor:not-allowed;color:var(--muted)}
+.sbox input{width:18px;height:18px;accent-color:var(--accent);margin:0;flex:none}
+.sbox b{display:block;font-weight:600} .sbox small{display:block;font-size:12px;color:var(--muted)}
+.sw{display:flex;align-items:center;gap:14px;cursor:pointer;margin:0;font-size:14.5px}
+.swt{flex:1;display:flex;flex-direction:column}
+.swt b{font-weight:500} .swt small{font-size:12.5px;color:var(--muted)}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw .tg{width:44px;height:26px;border-radius:999px;background:var(--line);position:relative;flex:none}
+.sw .tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.sw input:checked+.tg{background:var(--accent)} .sw input:checked+.tg::after{left:21px}
+.sw input:focus-visible+.tg{outline:2px solid var(--accent);outline-offset:2px}
+.sw input:disabled+.tg{opacity:.45}
+@media (prefers-reduced-motion: reduce){.sw .tg::after{transition:none}}
+.dwmsg{margin:0;padding:0 20px;min-height:0}
+.dwmsg:not(:empty){padding:8px 20px}
+.dwf{display:flex;align-items:center;gap:10px;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);flex-wrap:wrap}
+.dwf .del{margin-right:auto;border:0;background:none;color:var(--err);font-weight:500;padding:10px 0;min-height:44px}
+.dwf .ghost,.dwf .send{min-height:44px}
+@media (max-width:460px){.dwf .ghost,.dwf .send{flex:1}.dwf .del{order:3;flex-basis:100%;margin:0;padding:4px 0;min-height:40px}}
 /* lateral (só no computador) */
 #side{display:none}
 .side-brand{display:flex;align-items:center;gap:12px;padding:0 8px}
@@ -446,8 +534,13 @@ dialog h2{margin:0 0 4px;font-size:18px}
   </header>
   <main class="wrap wide">
     <div id="pUsers" class="pane">
-      <div class="toolbar"><p id="usersInfo"></p><div class="bts"><select class="sel" id="uFiltro" aria-label="Mostrar" hidden></select><button class="send" id="newUserBtn">Novo usuário</button></div></div>
-      <div class="acard"><div class="users" id="users"></div></div>
+      <div class="toolbar"><p id="usersInfo"></p><div class="bts"><button class="send" id="newUserBtn">Novo usuário</button></div></div>
+      <div class="ufil">
+        <input type="search" class="busca" id="uBusca" placeholder="Buscar por nome ou usuário" autocomplete="off" aria-label="Buscar pessoa">
+        <div class="useg" id="uSeg" aria-label="Mostrar"></div>
+        <select class="sel" id="uSetor" aria-label="Setor"></select>
+      </div>
+      <div id="users"></div>
     </div>
 
     <div id="pLog" class="pane" hidden>
@@ -507,19 +600,38 @@ dialog h2{margin:0 0 4px;font-size:18px}
   <button role="menuitem" id="mOut">Sair</button>
 </div>
 
-<dialog id="dlgUser">
-  <h2 id="duTitle">Novo usuário</h2>
-  <label for="duNome">Nome</label><input id="duNome" class="field" autocomplete="off">
-  <label for="duLogin">Usuário (para entrar)</label><input id="duLogin" class="field" autocapitalize="off" spellcheck="false" placeholder="ex.: joao.silva">
-  <label for="duSenha">Senha inicial</label><input id="duSenha" class="field" autocomplete="new-password" placeholder="mínimo 6 caracteres">
-  <div id="duPapelBox" hidden><label>Tipo de acesso</label><div class="chips" id="duPapel"></div></div>
-  <div id="duRespBox" hidden><label for="duResp">Área (gestor responsável)</label><select id="duResp" class="field"></select></div>
-  <label>Setores liberados</label>
-  <div class="chips" id="duDeps"></div>
-  <label class="check" id="duExpBox"><input type="checkbox" id="duExp"> Pode baixar a contagem do dia</label>
-  <div class="msg" id="duMsg"></div>
-  <div class="acts"><button class="ghost" id="duCancel">Cancelar</button><button class="send" id="duSave">Salvar</button></div>
-</dialog>
+<div id="drawer" hidden>
+  <div class="bg" id="dwBg"></div>
+  <aside class="dw" role="dialog" aria-modal="true" aria-labelledby="dwTit">
+    <div class="dwh">
+      <span class="av" id="dwAv"></span>
+      <div class="dwt"><h2 id="dwTit"></h2><small id="dwSub"></small><span class="s1" id="dwOn"></span></div>
+      <button class="x0" id="dwX" aria-label="Fechar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dwb">
+      <section class="dws"><h3>Dados</h3>
+        <div class="dwg f">
+          <label class="fl">Nome<input class="field" id="dwNome" autocomplete="off"></label>
+          <label class="fl">Usuário para entrar<input class="field" id="dwLogin" autocapitalize="off" spellcheck="false" placeholder="ex.: joao.silva"></label>
+          <label class="fl" id="dwSenhaBox">Senha inicial<input class="field" id="dwSenha" autocomplete="new-password" placeholder="mínimo 6 caracteres"></label>
+        </div>
+      </section>
+      <section class="dws" id="dwTipoBox"><h3>Tipo de acesso e área</h3>
+        <div class="dwg" role="radiogroup" aria-label="Tipo de acesso" id="dwPapel"></div>
+        <label class="fl" id="dwRespBox">Área<select class="field" id="dwResp"></select></label>
+      </section>
+      <section class="dws"><div class="dwh3"><h3>Setores liberados</h3><small id="dwDepsInfo"></small></div>
+        <div class="dwg f" id="dwDeps"></div><small class="nota" id="dwDepsNota"></small>
+      </section>
+      <section class="dws"><h3>Permissões</h3>
+        <label class="sw"><span class="swt"><b>Pode baixar a contagem</b><small id="dwExpTxt"></small></span><input type="checkbox" role="switch" id="dwExp"><span class="tg" aria-hidden="true"></span></label>
+      </section>
+      <section class="dws" id="dwAcesso"><h3>Acesso</h3><div class="uacts" id="dwActs"></div><small class="nota" id="dwInfo"></small></section>
+    </div>
+    <div class="msg dwmsg" id="dwMsg"></div>
+    <div class="dwf"><button class="del" id="dwDel">Excluir usuário</button><button class="ghost" id="dwCancel">Cancelar</button><button class="send" id="dwSave">Salvar alterações</button></div>
+  </aside>
+</div>
 
 <dialog id="dlgSenha">
   <h2>Trocar minha senha</h2>
@@ -1330,146 +1442,201 @@ function openTab(t){
 $$('#aTabs button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 
 /* ---------- usuários e equipe ---------- */
-S.users=[]; S.gestores=[];
+S.users=[]; S.gestores=[]; S.uf={q:'',seg:'todos',setor:''};
 async function loadUsers(){
   $('#users').textContent='Carregando…';
   try{ const j=await api('admin','GET',{acao:'usuarios'}); S.users=j.usuarios; S.gestores=j.gestores||[]; S.adminLogin=j.adminLogin; renderUsers(); }
   catch(e){ if(!authFail(e)) $('#users').textContent='Não foi possível carregar os usuários.'; }
 }
-async function saveUser(body){
-  try{ const j=await api('admin','POST',null,{acao:'salvar',...body}); const i=S.users.findIndex(u=>u.login===j.usuario.login);
-    const velho=i>=0?S.users[i]:null;
-    const novo={...j.usuario,online:(j.usuario.ativo&&!body.senha&&velho&&velho.online)||null,ultimo:velho?velho.ultimo:null};
-    if(i>=0) S.users[i]=novo; else S.users.push(novo);
-    if(body.papel||body.deps||body.exporta!=null){ loadUsers(); return true; } // pode ter mexido em outros (funcionários do gestor)
-    renderUsers(); return true; }
-  catch(e){ if(!authFail(e)) toast(e.message); return false; }
-}
-const escopoDeps=u=>{ // setores que podem ser liberados para este usuário
+const escopoDeps=(papel,resp)=>{ // setores que podem ser liberados para alguém com este tipo e esta área
   if(!S.me.admin) return myDeps();
-  if(u && u.papel==='func' && u.resp && u.resp!==S.adminLogin){ const g=S.gestores.find(x=>x.login===u.resp); if(g) return ativosDeps().filter(d=>g.deps.includes(d.id)); }
+  if(papel==='func' && resp && resp!==S.adminLogin){ const g=S.gestores.find(x=>x.login===resp); if(g) return ativosDeps().filter(d=>g.deps.includes(d.id)); }
   return ativosDeps();
 };
 function rotuloQuando(t){ if(!t) return 'nunca entrou'; const d=new Date(t), h=new Date(); const mesmo=d.toDateString()===h.toDateString();
   return 'último acesso '+(mesmo?'hoje às '+hora(t):d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' às '+hora(t)); }
+const nomeResp=l=>{ if(!l||l===S.adminLogin) return 'você'; const g=S.users.find(u=>u.login===l)||S.gestores.find(u=>u.login===l); return g?g.nome:l; };
+function filtroUser(u){
+  const f=S.uf, q=norm(f.q);
+  if(q && !norm(u.nome).includes(q) && !norm(u.login).includes(q)) return false;
+  if(f.seg==='gestores' && u.papel!=='gestor') return false;
+  if(f.seg==='conectados' && !u.online) return false;
+  if(f.seg==='bloqueados' && u.ativo) return false;
+  if(f.setor && !u.deps.includes(f.setor)) return false;
+  return true;
+}
+function linhaUser(u){
+  const g=u.papel==='gestor', r=el('div','urow'+(g?' g':''));
+  const up=el('div','up'); const t=el('div'); t.append(el('b',null,u.nome),el('small',null,u.login)); up.append(el('span','av'+(g?' g':''),iniciais(u.nome)),t);
+  const meta=el('div','umeta');
+  const st=el('div','usets'); const at=ativosDeps().filter(d=>u.deps.includes(d.id)), tot=ativosDeps().length;
+  if(!at.length) st.append(el('span','lg','nenhum setor'));
+  else if(at.length===tot && tot>3) st.append(el('span','stag','Todos os '+tot));
+  else { at.slice(0,3).forEach(d=>st.append(el('span','stag',d.nome))); if(at.length>3) st.append(el('span','lg','+'+(at.length-3))); }
+  const si=el('div','usit'), est=!u.ativo?'off':u.online?'on':'';
+  const l1=el('span','s1 '+est); l1.append(el('i'), !u.ativo?'Bloqueado':u.online?'Conectado agora':u.ultimo?'Desconectado':'Nunca entrou');
+  si.append(l1, el('small',null,u.online?(u.online.ap||''):u.ultimo?rotuloQuando(u.ultimo):u.criado?'criado em '+new Date(u.criado).toLocaleDateString('pt-BR'):''));
+  meta.append(el('span','utipo'+(g?' g':''),g?'Gestor de área':'Funcionário'), st, el('span','udl'+(u.exporta?' on':''),u.exporta?'Pode baixar':'Não baixa'), si);
+  const ed=el('button','ghost ued','Editar'); ed.setAttribute('aria-label','Editar '+u.nome); ed.onclick=()=>abrirDrawer(u);
+  r.append(up,meta,ed); return r;
+}
 function renderUsers(){
   const box=$('#users'); box.innerHTML='';
-  const fs=$('#uFiltro');
-  if(S.me.admin){ const keep=fs.value; fs.hidden=false; fs.innerHTML='';
-    fs.append(new Option('Todos os usuários',''),new Option('Só gestores de área','g'),new Option('Sem gestor (direto com você)','adm'));
-    S.gestores.forEach(g=>fs.append(new Option('Área de '+g.nome,'a:'+g.login))); fs.value=[...fs.options].some(o=>o.value===keep)?keep:''; }
-  else fs.hidden=true;
-  const f=fs.value;
-  const vis=S.users.filter(u=>!f||(f==='g'?u.papel==='gestor':f==='adm'?(u.papel==='func'&&u.resp===S.adminLogin):(u.papel==='func'&&'a:'+u.resp===f)));
-  const ativos=S.users.filter(u=>u.ativo).length, nG=S.users.filter(u=>u.papel==='gestor').length;
-  $('#usersInfo').textContent=S.users.length?(S.users.length+' usuário(s)'+(S.me.admin&&nG?', '+nG+' gestor(es) de área':'')+', '+ativos+' com acesso liberado'):'';
-  const m=el('div','user'); const mh=el('div','uh');
-  mh.append(el('b',null,S.me.nome),el('span','lg',S.me.login),el('span','badge b-g',S.me.admin?'Administrador geral · todos os setores':'Gestor de área · '+myDeps().map(d=>d.nome).join(', ')));
-  m.append(mh); if(!S.me.admin) m.append(el('div','lg',S.me.exporta?'Você pode liberar o download da contagem para a sua equipe.':'O download da contagem não está liberado para você, então também não pode ser liberado para a sua equipe.'));
-  box.append(m);
+  const gest=S.users.filter(u=>u.papel==='gestor'), glog=new Set(gest.map(g=>g.login));
+  const diretos=S.users.filter(u=>u.papel==='func'&&!glog.has(u.resp));
+  // cabeçalho e filtros
+  if(S.me.admin) $('#usersInfo').textContent=S.users.length?S.users.length+' pessoa(s)'+(gest.length?' · '+gest.length+' área(s) com gestor':'')+(diretos.length?' · '+diretos.length+' direto com você':''):'';
+  else $('#usersInfo').textContent=S.users.length+' pessoa(s) na sua equipe · '+(S.me.exporta?'você pode liberar o download para elas':'o download não está liberado para você, então também não pode ser liberado para a equipe');
+  const seg=$('#uSeg'); seg.innerHTML='';
+  [['todos','Todos',S.users.length],S.me.admin&&['gestores','Gestores',gest.length],['conectados','Conectados',S.users.filter(u=>u.online).length],['bloqueados','Bloqueados',S.users.filter(u=>!u.ativo).length]].filter(Boolean)
+    .forEach(([id,t,n])=>{ const b=el('button',null,t+' '+n); b.setAttribute('aria-pressed',S.uf.seg===id); b.onclick=()=>{ S.uf.seg=id; renderUsers(); }; seg.append(b); });
+  const ss=$('#uSetor'); const keep=S.uf.setor; ss.innerHTML=''; ss.append(new Option('Todos os setores',''));
+  (S.me.admin?ativosDeps():myDeps()).forEach(d=>ss.append(new Option(d.nome,d.id))); ss.value=keep; if(ss.value!==keep) S.uf.setor='';
   if(!S.users.length){ box.append(el('p','none',S.me.admin?'Nenhum usuário cadastrado. Use "Novo usuário" para liberar o acesso de alguém.':'Ninguém na sua equipe ainda. Use "Novo usuário" para criar o acesso dos funcionários da sua área.')); return; }
-  if(!vis.length){ box.append(el('p','none','Ninguém com esse filtro.')); return; }
-  vis.forEach(u=>{
-    const c=el('div','user'), h=el('div','uh');
-    h.append(el('b',null,u.nome),el('span','lg',u.login));
-    if(u.papel==='gestor') h.append(el('span','badge b-g','Gestor de área'));
-    h.append(el('span','badge '+(u.ativo?'b-on':'b-off'),u.ativo?'Liberado':'Bloqueado'));
-    const st=el('div','lg'); st.style.marginTop='4px';
-    st.textContent=(u.online?'● Conectado agora'+(u.online.ap?' · '+u.online.ap:''):'Desconectado · '+rotuloQuando(u.ultimo))+(S.me.admin&&u.papel==='func'?' · área: '+(u.resp===S.adminLogin?'direto com você':u.respNome):'');
-    if(u.online) st.style.color='var(--ok)';
-    const chips=el('div','chips');
-    const esc=escopoDeps(u);
-    esc.forEach(d=>{ const b=el('button','chip',d.nome); const on=u.deps.includes(d.id); b.setAttribute('aria-pressed',on);
-      b.onclick=async()=>{ b.disabled=true; const deps=on?u.deps.filter(x=>x!==d.id):u.deps.concat(d.id);
-        await saveUser({login:u.login,deps:DEPS.map(x=>x.id).filter(x=>deps.includes(x))}); };
-      chips.append(b); });
-    if(!esc.length) chips.append(el('span','lg','Nenhum setor disponível para liberar.'));
-    const perm=el('div','chips'); perm.style.marginTop='0';
-    const pe=el('button','chip','Baixar a contagem do dia'); pe.setAttribute('aria-pressed',!!u.exporta);
-    pe.disabled=!S.me.exporta&&!u.exporta; pe.title='Mostra o botão de baixar a contagem para este usuário';
-    pe.onclick=async()=>{ pe.disabled=true; if(await saveUser({login:u.login,exporta:!u.exporta})) toast(!u.exporta?u.nome+' agora pode baixar a contagem do dia.':'Download da contagem retirado de '+u.nome+'.'); };
-    perm.append(el('small','lg','Permissões:'),pe);
-    if(S.me.admin){
-      const pg=el('button','chip','Gestor de área'); pg.setAttribute('aria-pressed',u.papel==='gestor');
-      pg.title='O gestor cria e cuida dos funcionários dos setores dele, fecha a contagem e vê a visão geral da área';
-      pg.onclick=async()=>{ const vira=u.papel!=='gestor';
-        if(!confirm(vira?'Tornar '+u.nome+' gestor de área? Ele poderá criar funcionários nos setores dele ('+(u.deps.map(depNome).join(', ')||'nenhum setor ainda')+'), fechar a contagem e ver a visão geral da área.':'Tirar '+u.nome+' da função de gestor? Os funcionários da área dele passam para você.')) return;
-        pg.disabled=true; await saveUser({login:u.login,papel:vira?'gestor':'func'}); };
-      perm.append(pg);
-    }
-    c.append(h,st,chips,perm);
-    if(S.me.admin && u.papel==='func' && S.gestores.length){
-      const ln=el('div','uline'); const s=el('select'); s.setAttribute('aria-label','Área de '+u.nome);
-      s.append(new Option('Direto com o administrador',S.adminLogin)); S.gestores.forEach(g=>s.append(new Option('Área de '+g.nome,g.login))); s.value=u.resp;
-      s.onchange=async()=>{ const g=S.gestores.find(x=>x.login===s.value);
-        const perde=g?u.deps.filter(d=>!g.deps.includes(d)):[];
-        if(perde.length && !confirm(u.nome+' vai perder acesso a '+perde.map(depNome).join(', ')+', que não são setores de '+g.nome+'. Continuar?')){ s.value=u.resp; return; }
-        s.disabled=true; await saveUser({login:u.login,resp:s.value}); };
-      ln.append(el('small','lg','Área:'),s); c.append(ln);
-    }
-    const acts=el('div','uacts'); acts.style.marginTop='10px';
-    const bl=el('button','ghost'+(u.ativo?' danger':''),u.ativo?'Bloquear acesso':'Liberar acesso');
-    bl.onclick=async()=>{ bl.disabled=true; await saveUser({login:u.login,ativo:!u.ativo}); };
-    const pw=el('button','ghost','Nova senha');
-    pw.onclick=async()=>{ const s=prompt('Nova senha para '+u.nome+' (mínimo 6 caracteres):'); if(s==null) return;
-      if(s.length<6){ toast('A senha precisa ter pelo menos 6 caracteres'); return; }
-      if(await saveUser({login:u.login,senha:s})) toast('Senha trocada. '+u.nome+' vai precisar entrar de novo.'); };
-    const ed=el('button','ghost','Renomear');
-    ed.onclick=async()=>{ const n=prompt('Nome de '+u.login+':',u.nome); if(n&&n.trim()&&n.trim()!==u.nome) saveUser({login:u.login,nome:n.trim()}); };
-    const del=el('button','ghost danger','Excluir');
-    del.onclick=async()=>{ if(!confirm('Excluir o usuário '+u.nome+'? As contagens que ele já fez continuam salvas.'+(u.papel==='gestor'?' Os funcionários da área dele passam para você.':''))) return;
-      try{ await api('admin','POST',null,{acao:'excluir',login:u.login}); toast('Usuário excluído'); loadUsers(); }
-      catch(e){ if(!authFail(e)) toast(e.message); } };
-    const enc=el('button','ghost','Encerrar sessão'); enc.hidden=!u.online;
-    enc.onclick=async()=>{ if(!confirm('Desconectar '+u.nome+' do aparelho em uso agora?')) return; enc.disabled=true;
-      try{ await api('admin','POST',null,{acao:'encerrar',login:u.login}); const i=S.users.findIndex(x=>x.login===u.login); S.users[i]={...S.users[i],online:null}; renderUsers(); toast('Sessão encerrada. '+u.nome+' já pode entrar em outro aparelho.'); }
-      catch(e){ if(!authFail(e)) toast(e.message); enc.disabled=false; } };
-    acts.append(enc,bl,pw,ed,del);
-    c.append(acts); box.append(c);
+  // grupos: uma área por gestor e, por último, quem fica direto com o administrador
+  const grupos=S.me.admin
+    ? gest.map(g=>({tit:'Área de '+g.nome, sub:(g.deps.map(depNome).join(', ')||'sem setores'), gestor:g, membros:S.users.filter(u=>u.papel==='func'&&u.resp===g.login)}))
+        .concat(diretos.length?[{tit:'Direto com você', sub:'sem gestor de área', membros:diretos}]:[])
+    : [{tit:'Sua equipe', sub:myDeps().map(d=>d.nome).join(', '), membros:S.users, add:S.me.login}];
+  let mostrados=0;
+  grupos.forEach(gr=>{
+    const pessoas=(gr.gestor?[gr.gestor]:[]).concat(gr.membros).filter(filtroUser);
+    if(!pessoas.length) return; mostrados+=pessoas.length;
+    const sec=el('section','ugrp'), h=el('div','gh'), ht=el('div');
+    ht.append(el('h2',null,gr.tit),el('small',null,gr.sub+' · '+gr.membros.length+' funcionário(s)')); h.append(ht);
+    const add=gr.gestor?gr.gestor.login:gr.add;
+    if(add){ const b=el('button','lnk','Adicionar à equipe'); b.onclick=()=>abrirDrawer(null,add); h.append(b); }
+    const hd=el('div','urow uhead'); hd.setAttribute('aria-hidden','true'); const m=el('div','umeta');
+    ['Tipo','Setores','Download','Situação'].forEach(x=>m.append(el('span',null,x))); hd.append(el('span',null,'Pessoa'),m,el('span'));
+    sec.append(h,hd); pessoas.forEach(u=>sec.append(linhaUser(u))); box.append(sec);
   });
+  if(!mostrados) box.append(el('p','none','Ninguém com esses filtros.'));
 }
-$('#uFiltro').onchange=renderUsers;
-const duDeps=new Set(); let duPapel='func';
-function duRender(){
-  const box=$('#duDeps'); box.innerHTML='';
-  const resp=S.me.admin?(duPapel==='gestor'?S.adminLogin:$('#duResp').value):S.me.login;
-  const esc=escopoDeps({papel:duPapel,resp});
-  [...duDeps].forEach(d=>{ if(!esc.some(x=>x.id===d)) duDeps.delete(d); });
-  esc.forEach(d=>{ const b=el('button','chip',d.nome); b.type='button'; b.setAttribute('aria-pressed',duDeps.has(d.id));
-    b.onclick=()=>{ duDeps.has(d.id)?duDeps.delete(d.id):duDeps.add(d.id); b.setAttribute('aria-pressed',duDeps.has(d.id)); }; box.append(b); });
-  $('#duRespBox').hidden=!S.me.admin||duPapel==='gestor'||!S.gestores.length;
-  const pb=$('#duPapel'); pb.innerHTML='';
-  [['func','Funcionário (conta)'],['gestor','Gestor de área']].forEach(([id,t])=>{ const b=el('button','chip',t); b.type='button'; b.setAttribute('aria-pressed',duPapel===id);
-    b.onclick=()=>{ duPapel=id; duRender(); }; pb.append(b); });
-  $('#duTitle').textContent=duPapel==='gestor'?'Novo gestor de área':S.me.admin?'Novo usuário':'Novo funcionário da equipe';
+$('#uBusca').oninput=e=>{ S.uf.q=e.target.value; renderUsers(); };
+$('#uSetor').onchange=e=>{ S.uf.setor=e.target.value; renderUsers(); };
+
+/* ---------- painel lateral: criar e editar ---------- */
+let DW=null;
+function abrirDrawer(u, resp){
+  const novo=!u;
+  DW={u, papel:u?u.papel:'func', resp:u?u.resp:(!S.me.admin?S.me.login:(resp||S.adminLogin)), deps:new Set(u?u.deps:[]), exporta:u?!!u.exporta:false, sujo:false};
+  $('#dwNome').value=u?u.nome:''; $('#dwLogin').value=u?u.login:''; $('#dwLogin').disabled=!novo; delete $('#dwLogin').dataset.touched;
+  $('#dwSenha').value=''; $('#dwSenhaBox').hidden=!novo; $('#dwMsg').textContent='';
+  $('#dwDel').hidden=novo; $('#dwAcesso').hidden=novo; $('#dwSave').textContent=novo?'Criar usuário':'Salvar alterações';
+  dwRender();
+  $('#drawer').hidden=false; document.body.style.overflow='hidden';
+  setTimeout(()=>(novo?$('#dwNome'):$('#dwX')).focus(),30);
 }
-$('#newUserBtn').onclick=()=>{
-  duDeps.clear(); duPapel='func'; ['duNome','duLogin','duSenha'].forEach(i=>$('#'+i).value=''); $('#duMsg').textContent=''; delete $('#duLogin').dataset.touched;
-  $('#duPapelBox').hidden=!S.me.admin;
-  const rs=$('#duResp'); rs.innerHTML=''; rs.append(new Option('Direto com o administrador',S.adminLogin||'')); S.gestores.forEach(g=>rs.append(new Option('Área de '+g.nome,g.login)));
-  const fs=$('#uFiltro').value; rs.value=fs.startsWith('a:')?fs.slice(2):(S.adminLogin||'');
-  $('#duExp').checked=false; $('#duExpBox').hidden=!S.me.exporta;
-  duRender(); $('#dlgUser').showModal(); $('#duNome').focus();
-};
-$('#duResp').onchange=duRender;
-$('#duNome').addEventListener('input',()=>{ if($('#duLogin').dataset.touched) return;
-  const p=$('#duNome').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(Boolean);
-  $('#duLogin').value=p.length>1?p[0]+'.'+p[p.length-1]:(p[0]||''); });
-$('#duLogin').addEventListener('input',()=>$('#duLogin').dataset.touched='1');
-$('#duCancel').onclick=()=>$('#dlgUser').close();
-$('#duSave').onclick=async()=>{
-  const nome=$('#duNome').value.trim(), login=$('#duLogin').value.trim().toLowerCase(), senha=$('#duSenha').value;
-  if(!nome){ $('#duMsg').textContent='Informe o nome.'; return; }
-  if(!/^[a-z0-9._-]{3,30}$/.test(login)){ $('#duMsg').textContent='Usuário: 3 a 30 letras minúsculas, números, ponto ou hífen, sem espaço nem acento.'; return; }
-  if(senha.length<6){ $('#duMsg').textContent='A senha precisa ter pelo menos 6 caracteres.'; return; }
-  const body={acao:'salvar',criar:true,login,nome,senha,deps:DEPS.map(d=>d.id).filter(d=>duDeps.has(d)),ativo:true,exporta:!!$('#duExp').checked};
-  if(S.me.admin){ body.papel=duPapel; if(duPapel==='func') body.resp=$('#duResp').value||S.adminLogin; }
-  $('#duSave').disabled=true;
-  try{ await api('admin','POST',null,body); $('#dlgUser').close(); loadUsers();
-    toast((duPapel==='gestor'?'Gestor criado':'Usuário criado')+'. Envie a ele o usuário "'+login+'" e a senha.'); }
-  catch(e){ if(!authFail(e)) $('#duMsg').textContent=e.message; }
-  finally{ $('#duSave').disabled=false; }
-};
+function fecharDrawer(forcar){
+  if(!DW) return;
+  if(!forcar && DW.sujo && !confirm('Descartar as alterações que não foram salvas?')) return;
+  $('#drawer').hidden=true; document.body.style.overflow=''; DW=null;
+}
+function dwRender(){
+  const u=DW.u, novo=!u, admin=S.me.admin;
+  const nome=$('#dwNome').value.trim()||(novo?'Novo usuário':u.nome);
+  $('#dwAv').textContent=novo&&!$('#dwNome').value.trim()?'+':iniciais(nome); $('#dwAv').className='av'+(DW.papel==='gestor'?' g':'');
+  $('#dwTit').textContent=novo?(DW.papel==='gestor'?'Novo gestor de área':'Novo usuário'):u.nome;
+  $('#dwSub').textContent=novo?(DW.papel==='gestor'?'Gestor de área':'Funcionário'+(admin?(DW.resp&&DW.resp!==S.adminLogin?' na área de '+nomeResp(DW.resp):' direto com você'):' da sua equipe'))
+    :u.login+' · '+(DW.papel==='gestor'?'Gestor de área':'Funcionário'+(admin?(DW.resp&&DW.resp!==S.adminLogin?' na área de '+nomeResp(DW.resp):' direto com você'):''));
+  const on=$('#dwOn'); on.hidden=novo; if(u){ on.className='s1 '+(!u.ativo?'off':u.online?'on':''); on.innerHTML=''; on.append(el('i'),!u.ativo?'Acesso bloqueado':u.online?'Conectado agora'+(u.online.ap?' · '+u.online.ap:''):cap(rotuloQuando(u.ultimo))); }
+  // tipo e área (só o administrador geral muda)
+  $('#dwTipoBox').hidden=!admin;
+  if(admin){
+    const pb=$('#dwPapel'); pb.innerHTML='';
+    [['func','Funcionário','Conta os setores liberados'],['gestor','Gestor de área','Cuida da equipe e fecha a contagem']].forEach(([id,t,d])=>{
+      const b=el('button','opt'); b.type='button'; b.setAttribute('role','radio'); b.setAttribute('aria-checked',DW.papel===id); b.append(el('b',null,t),el('small',null,d));
+      b.onclick=()=>{ if(DW.papel===id) return; DW.papel=id; DW.sujo=true; dwRender(); }; pb.append(b); });
+    const rs=$('#dwResp'); rs.innerHTML=''; rs.append(new Option('Direto com você (sem gestor)',S.adminLogin));
+    S.gestores.filter(g=>!u||g.login!==u.login).forEach(g=>rs.append(new Option('Área de '+g.nome,g.login)));
+    rs.value=DW.resp&&[...rs.options].some(o=>o.value===DW.resp)?DW.resp:S.adminLogin; DW.resp=rs.value;
+    $('#dwRespBox').hidden=DW.papel==='gestor'||!S.gestores.filter(g=>!u||g.login!==u.login).length;
+  }
+  // setores
+  const esc=escopoDeps(DW.papel,DW.papel==='func'?DW.resp:null), ids=esc.map(d=>d.id);
+  const restrito=admin && DW.papel==='func' && DW.resp && DW.resp!==S.adminLogin;
+  [...DW.deps].forEach(d=>{ if(!ids.includes(d) && depInfo(d) && depInfo(d).ativo!==false) DW.deps.delete(d); });
+  const box=$('#dwDeps'); box.innerHTML='';
+  (restrito?ativosDeps().slice().sort((a,b)=>ids.includes(b.id)-ids.includes(a.id)):esc).forEach(d=>{
+    const fora=!ids.includes(d.id), ok=DW.deps.has(d.id);
+    const l=el('label','sbox'+(fora?' fora':ok?' on':'')); const c=el('input'); c.type='checkbox'; c.checked=ok; c.disabled=fora;
+    c.onchange=()=>{ c.checked?DW.deps.add(d.id):DW.deps.delete(d.id); DW.sujo=true; dwRender(); };
+    const tx=el('span'); tx.append(el('b',null,d.nome),el('small',null,fora?'fora da área':ok?'liberado':'não liberado'));
+    l.append(c,tx); box.append(l); });
+  const nOk=ids.filter(id=>DW.deps.has(id)).length;
+  $('#dwDepsInfo').textContent=nOk+' de '+ids.length+(restrito||!admin?' da área':'');
+  $('#dwDepsNota').textContent=restrito?'Os setores fora da área de '+nomeResp(DW.resp)+' ficam bloqueados. Para liberar, mude a área ou peça ao gestor.'
+    :DW.papel==='gestor'?'O gestor cuida dos funcionários destes setores, fecha a contagem e vê a visão geral deles.':!ids.length?'Nenhum setor disponível.':'';
+  if(!esc.length) box.append(el('p','lg','Nenhum setor disponível para liberar.'));
+  // permissão de download
+  const ex=$('#dwExp'); ex.checked=DW.exporta; ex.disabled=!S.me.exporta&&!DW.exporta;
+  $('#dwExpTxt').textContent=ex.disabled?'Você não tem esta permissão para repassar':DW.papel==='gestor'?'Ele baixa o relatório da área e pode liberar para a equipe':'Mostra o botão do relatório em Excel dos setores dele';
+  // acesso (só na edição)
+  if(u){
+    const a=$('#dwActs'); a.innerHTML='';
+    const pw=el('button','ghost','Definir nova senha'); pw.onclick=dwSenha;
+    const enc=el('button','ghost','Encerrar sessão'); enc.hidden=!u.online; enc.onclick=dwEncerrar;
+    const bl=el('button','ghost'+(u.ativo?' danger':''),u.ativo?'Bloquear acesso':'Liberar acesso'); bl.onclick=dwBloquear;
+    a.append(pw,enc,bl);
+    $('#dwInfo').textContent=[u.criado?'Criado em '+new Date(u.criado).toLocaleDateString('pt-BR'):'',u.ultimo?rotuloQuando(u.ultimo):'nunca entrou'].filter(Boolean).join(' · ');
+  }
+}
+async function postUser(body){ return api('admin','POST',null,body); }
+async function dwSenha(){
+  const u=DW.u; const s=prompt('Nova senha para '+u.nome+' (mínimo 6 caracteres):'); if(s==null) return;
+  if(s.length<6){ toast('A senha precisa ter pelo menos 6 caracteres'); return; }
+  try{ await postUser({acao:'salvar',login:u.login,senha:s}); toast('Senha trocada. '+u.nome+' vai precisar entrar de novo.'); u.online=null; dwRender(); renderUsers(); }
+  catch(e){ if(!authFail(e)) toast(e.message); }
+}
+async function dwEncerrar(){
+  const u=DW.u; if(!confirm('Desconectar '+u.nome+' do aparelho em uso agora?')) return;
+  try{ await postUser({acao:'encerrar',login:u.login}); u.online=null; dwRender(); renderUsers(); toast('Sessão encerrada. '+u.nome+' já pode entrar em outro aparelho.'); }
+  catch(e){ if(!authFail(e)) toast(e.message); }
+}
+async function dwBloquear(){
+  const u=DW.u, bloq=u.ativo;
+  if(bloq && !confirm('Bloquear o acesso de '+u.nome+'? Ele é desconectado e não consegue entrar até você liberar de novo.')) return;
+  try{ const j=await postUser({acao:'salvar',login:u.login,ativo:!bloq}); u.ativo=j.usuario.ativo; if(bloq) u.online=null; dwRender(); renderUsers();
+    toast(bloq?'Acesso de '+u.nome+' bloqueado.':'Acesso de '+u.nome+' liberado.'); }
+  catch(e){ if(!authFail(e)) toast(e.message); }
+}
+async function dwSalvar(){
+  const u=DW.u, novo=!u, nome=$('#dwNome').value.trim(), login=(novo?$('#dwLogin').value:u.login).trim().toLowerCase();
+  const msg=t=>{ $('#dwMsg').textContent=t; };
+  if(!nome) return msg('Informe o nome.');
+  if(novo && !/^[a-z0-9._-]{3,30}$/.test(login)) return msg('Usuário: 3 a 30 letras minúsculas, números, ponto ou hífen, sem espaço nem acento.');
+  if(novo && $('#dwSenha').value.length<6) return msg('A senha precisa ter pelo menos 6 caracteres.');
+  const body={acao:'salvar',login,nome,deps:DEPS.map(d=>d.id).filter(d=>DW.deps.has(d)),exporta:DW.exporta};
+  if(novo){ body.criar=true; body.senha=$('#dwSenha').value; body.ativo=true; }
+  if(S.me.admin){ body.papel=DW.papel; if(DW.papel==='func') body.resp=DW.resp||S.adminLogin; }
+  if(!novo && S.me.admin && DW.papel!==u.papel && !confirm(DW.papel==='gestor'
+      ?'Tornar '+nome+' gestor de área? Ele poderá criar funcionários nos setores dele, fechar a contagem e ver a visão geral da área.'
+      :'Tirar '+nome+' da função de gestor? Os funcionários da área dele passam para você.')) return;
+  $('#dwSave').disabled=true; msg('');
+  try{ await postUser(body); fecharDrawer(true); loadUsers();
+    toast(novo?(DW_PAPEL_TXT(body.papel)+' criado. Envie a ele o usuário "'+login+'" e a senha.'):'Alterações de '+nome+' salvas.'); }
+  catch(e){ if(!authFail(e)) msg(e.message); }
+  finally{ $('#dwSave').disabled=false; }
+}
+const DW_PAPEL_TXT=p=>p==='gestor'?'Gestor':'Usuário';
+async function dwExcluir(){
+  const u=DW.u; if(!confirm('Excluir o usuário '+u.nome+'? As contagens que ele já fez continuam salvas.'+(u.papel==='gestor'?' Os funcionários da área dele passam para você.':''))) return;
+  try{ await postUser({acao:'excluir',login:u.login}); fecharDrawer(true); toast('Usuário excluído'); loadUsers(); }
+  catch(e){ if(!authFail(e)) toast(e.message); }
+}
+$('#newUserBtn').onclick=()=>abrirDrawer(null);
+$('#dwX').onclick=()=>fecharDrawer(); $('#dwCancel').onclick=()=>fecharDrawer(); $('#dwBg').onclick=()=>fecharDrawer();
+$('#dwSave').onclick=dwSalvar; $('#dwDel').onclick=dwExcluir;
+$('#dwResp').onchange=e=>{ DW.resp=e.target.value; DW.sujo=true; dwRender(); };
+$('#dwExp').onchange=e=>{ DW.exporta=e.target.checked; DW.sujo=true; dwRender(); };
+$('#dwNome').addEventListener('input',()=>{ if(!DW) return; DW.sujo=true;
+  if(!DW.u && !$('#dwLogin').dataset.touched){ const p=$('#dwNome').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(Boolean);
+    $('#dwLogin').value=p.length>1?p[0]+'.'+p[p.length-1]:(p[0]||''); }
+  $('#dwTit').textContent=DW.u?DW.u.nome:($('#dwNome').value.trim()||(DW.papel==='gestor'?'Novo gestor de área':'Novo usuário'));
+  $('#dwAv').textContent=$('#dwNome').value.trim()?iniciais($('#dwNome').value):(DW.u?iniciais(DW.u.nome):'+'); });
+$('#dwLogin').addEventListener('input',()=>{ $('#dwLogin').dataset.touched='1'; if(DW) DW.sujo=true; });
+$('#dwSenha').addEventListener('input',()=>{ if(DW) DW.sujo=true; });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && DW && !$('#drawer').hidden){ e.preventDefault(); fecharDrawer(); } });
 
 /* ---------- relatório ---------- */
 S.log=[]; S.logDias=[];

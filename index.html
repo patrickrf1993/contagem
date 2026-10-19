@@ -660,7 +660,10 @@ function authFail(e){
 }
 function applyPerfil(p){
   if(!p) return;
-  const before=JSON.stringify(S.me); S.me=p; ls.set('perfil',p);
+  const before=JSON.stringify(S.me);
+  // setor liberado ou retirado: busca de novo as contagens do dia e a comparação com a anterior
+  if(S.me&&JSON.stringify(S.me.deps)!==JSON.stringify(p.deps)){ S.ver=null; S.forcar=true; S.refDate=null; setTimeout(poll,300); }
+  S.me=p; ls.set('perfil',p);
   if(before!==JSON.stringify(p)){ renderMe(); renderNav(); if(S.view==='count') build(); }
 }
 
@@ -680,8 +683,9 @@ async function poll(){
     if(j.itens){
       const before=S.remote, beforeObs=S.obs, fAntes=JSON.stringify(S.fech);
       S.remote=nkObj(j.itens); S.obs=nkObj(j.obs||{}); S.fech=j.fech||{}; S.ver=j.v; cacheRemote();
+      S.forcar=false;
       if(fAntes!==JSON.stringify(S.fech)) build(); else applyRemote(before,beforeObs);
-    } else S.ver=j.v;
+    } else S.ver=S.forcar?null:j.v;
     S.online=true; const np=nPend();
     setLive(np?'busy':'', np?('Enviando '+np+' item(s)…'):'Ao vivo · atualizado '+hora(Date.now()));
     if(S.wasOff){ S.wasOff=false; nodes.forEach(li=>li._sync()); }

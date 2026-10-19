@@ -1,6 +1,6 @@
 // Guarda a página no aparelho para ela abrir mesmo sem sinal.
 // As chamadas à /api nunca passam pelo cache: a página cuida delas.
-const CACHE = 'contagem-v5';
+const CACHE = 'contagem-v6';
 const ARQUIVOS = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/icon-180.png'];
 
 self.addEventListener('install', e => {

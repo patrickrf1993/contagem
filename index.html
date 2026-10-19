@@ -358,7 +358,8 @@ dialog h2{margin:0 0 4px;font-size:18px}
           <span class="livepill d-only" id="liveD"><i></i><span>Conectando…</span></span>
           <div class="dprog d-only" id="dProg"></div>
           <input type="date" id="date" aria-label="Data da contagem">
-          <button class="ghost d-only" id="dlDep" hidden>Exportar setor</button>
+          <button class="ghost d-only" id="dlCsv" hidden title="Arquivo lido pela macro Baixar Contagem da planilha">Arquivo da planilha</button>
+          <button class="ghost d-only" id="dlDep" hidden title="Relatório em Excel do setor aberto">Relatório do setor</button>
           <button class="send d-only" id="fechBtn" hidden>Fechar contagem</button>
           <button class="me m-only" id="meBtn" aria-haspopup="menu"></button>
         </div>
@@ -407,7 +408,8 @@ dialog h2{margin:0 0 4px;font-size:18px}
         <div class="tools">
           <span class="livepill d-only" id="pLive"><i></i><span>Atualizando…</span></span>
           <input type="date" id="pDate" aria-label="Data">
-          <button class="send d-only" id="pExp" hidden>Exportar dia</button>
+          <button class="ghost d-only" id="pCsv" hidden title="Arquivo lido pela macro Baixar Contagem da planilha">Arquivo da planilha</button>
+          <button class="send d-only" id="pExp" hidden title="Relatório em Excel de todos os seus setores">Baixar relatório</button>
         </div>
       </div>
     </div>
@@ -500,6 +502,7 @@ dialog h2{margin:0 0 4px;font-size:18px}
   <small id="menuWho"></small>
   <button role="menuitem" id="mPainel" hidden>Visão geral</button>
   <button role="menuitem" id="mAdmin" hidden>Administração</button>
+  <button role="menuitem" id="mRel" hidden>Baixar relatório (Excel)</button>
   <button role="menuitem" id="mSenha" hidden>Trocar minha senha</button>
   <button role="menuitem" id="mOut">Sair</button>
 </div>
@@ -790,7 +793,7 @@ function tabs(){
   $('#fechBtn').hidden=!pode||!!f; $('#fechBtnM').hidden=!pode||!!f;
   $('#fechBar').hidden=!f;
   if(f){ $('#fechTxt').textContent='Contagem de '+depNome(S.dep)+' fechada por '+(f.nome||'gestor')+' às '+hora(f.t)+' ('+f.contados+' de '+f.total+' itens). Ninguém altera mais os valores deste dia.'; $('#reabrirBtn').hidden=!pode; }
-  $('#dlDep').hidden=!(S.me&&S.me.exporta&&d);
+  $('#dlDep').hidden=!(S.me&&S.me.exporta&&d); $('#dlCsv').hidden=!(S.me&&S.me.admin);
 }
 function match(it){
   const k=K(S.dep,it.c), v=val(k);
@@ -958,33 +961,166 @@ $('#fechBtn').onclick=fecharSetor; $('#fechBtnM').onclick=fecharSetor; $('#reabr
 
 /* ---------- baixar a contagem (mesmo formato de antes, lido pela planilha) ---------- */
 function download(name, lines, tipo){
-  const blob=tipo?new Blob([lines],{type:tipo}):new Blob(['\ufeff'+lines.join('\r\n')+'\r\n'],{type:'text/csv'});
+  const blob=lines instanceof Blob?lines:tipo?new Blob([lines],{type:tipo}):new Blob(['\ufeff'+lines.join('\r\n')+'\r\n'],{type:'text/csv'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
 const clean=s=>String(s==null?'':s).replace(/[;\r\n]/g,' ');
 async function exportar(deps, nomeArq){
   await flush().catch(()=>{});
-  let itens=S.remote;
-  try{ const j=await api('contagem','GET',{data:S.date}); itens=nkObj(j.itens||{}); }
+  let itens=S.remote, cat=LISTA;
+  try{ const j=await api('contagem','GET',{data:S.date,cv:''}); itens=nkObj(j.itens||{}); if(j.catalogo&&j.catalogo.itens) cat=j.catalogo.itens; }
   catch(e){ if(authFail(e)) return; toast('Sem sinal: usando o que está guardado neste aparelho.'); }
+  const nomes={}; Object.keys(cat).forEach(d=>(cat[d]||[]).forEach(it=>{ nomes[K(d,it.c)]={nome:it.n,und:it.u}; }));
   const p=S.pending[S.date]||{};
   const vx=k=>(k in p)?(p[k]&&p[k].vazio?null:p[k]):itens[k];
-  const out=['ABA;CODIGO;LINHA;CONTAGEM;FORMULA;DATA;RESPONSAVEL'];
+  const out=['ABA;CODIGO;LINHA;CONTAGEM;FORMULA;DATA;RESPONSAVEL;INSUMO;UND'];
   deps.forEach(d=>{
-    const chaves=new Set(); lista(d.id).forEach(it=>chaves.add(K(d.id,it.c)));
+    const chaves=new Set(); (cat[d.id]||[]).forEach(it=>chaves.add(K(d.id,it.c)));
     Object.keys(itens).concat(Object.keys(p)).forEach(k=>{ if(k.startsWith(d.id+':c')) chaves.add(k); }); // inclui contados que saíram da lista
     [...chaves].forEach(k=>{ const v=vx(k); if(!has(v)) return; const c=k.slice(d.id.length+2);
       const pp=v.p&&v.p.length>1?v.p.map(round):null;
       const formula=v.m?((pp?'('+pp.join('+')+')':round(v.q))+'*'+round(v.m)):(pp?pp.join('+'):'');
-      out.push([d.aba||d.id,c,'',round(v.total),formula,br(S.date),clean(v.by)].join(';')); });
+      const it=nomes[k]||ITEM[k]||{};
+      out.push([d.aba||d.id,c,'',round(v.total),formula,br(S.date),clean(v.by),clean(it.nome),clean(it.und)].join(';')); });
   });
   if(out.length===1){ toast('Nenhum item contado em '+br(S.date)); return; }
   download(nomeArq, out); toast('Arquivo baixado ('+(out.length-1)+' itens)');
 }
-$('#dlBtn').onclick=()=>exportar(myDeps(),'contagem_'+S.date+'.csv');
-$('#dlDep').onclick=()=>exportar(myDeps().filter(d=>d.id===S.dep),'contagem_'+S.dep.toLowerCase()+'_'+S.date+'.csv');
-$('#pExp').onclick=async()=>{ if(!S.cv) loadLista(); exportar(myDeps(),'contagem_'+S.date+'.csv'); };
+const arqPlanilha=()=>exportar(myDeps(),'contagem_'+S.date+'.csv');
+const relDia=()=>relatorio(myDeps(),'relatorio_contagem_'+S.date+'.xlsx');
+$('#dlBtn').onclick=()=>S.me&&S.me.admin?arqPlanilha():relDia();
+$('#dlDep').onclick=()=>relatorio(myDeps().filter(d=>d.id===S.dep),'relatorio_'+S.dep.toLowerCase()+'_'+S.date+'.xlsx');
+$('#dlCsv').onclick=arqPlanilha; $('#pCsv').onclick=arqPlanilha;
+$('#pExp').onclick=relDia;
+
+/* ---------- relatório em Excel (.xlsx) para as áreas ---------- */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipar(arqs, tipo){ // arquivos guardados sem compressão (o .xlsx é um zip)
+  const enc=new TextEncoder(), partes=[], central=[]; let off=0;
+  const d=new Date(), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  arqs.forEach(f=>{ const nome=enc.encode(f.nome), dados=enc.encode(f.txt), crc=crc32(dados);
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(10,tm,true); h.setUint16(12,dt,true);
+    h.setUint32(14,crc,true); h.setUint32(18,dados.length,true); h.setUint32(22,dados.length,true); h.setUint16(26,nome.length,true);
+    partes.push(new Uint8Array(h.buffer),nome,dados);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(12,tm,true); c.setUint16(14,dt,true);
+    c.setUint32(16,crc,true); c.setUint32(20,dados.length,true); c.setUint32(24,dados.length,true); c.setUint16(28,nome.length,true); c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nome); off+=30+nome.length+dados.length; });
+  const tam=central.reduce((a,b)=>a+b.length,0);
+  const e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,arqs.length,true); e.setUint16(10,arqs.length,true); e.setUint32(12,tam,true); e.setUint32(16,off,true);
+  return new Blob([...partes,...central,new Uint8Array(e.buffer)],{type:tipo});
+}
+const xe=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+const colL=n=>{let s='';n++;while(n){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
+// estilos: 1 título, 2 subtítulo, 3 cabeçalho, 4 texto, 5 inteiro, 6 decimal, 7 tonelada (3 casas), 8 variação, 9 variação destacada,
+// 10 não contado, 11 observação, 12 negrito, 13 situação destacada, 14 percentual, 15 inteiro negrito, 16 percentual negrito
+const XS={tit:1,sub:2,cab:3,txt:4,int:5,dec:6,ton:7,vr:8,vrW:9,nao:10,obs:11,neg:12,sitW:13,pct:14,intN:15,pctN:16,intW:17,cabR:18};
+const ESTILOS='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+ '<numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0.###"/><numFmt numFmtId="165" formatCode="#,##0.000"/><numFmt numFmtId="166" formatCode="+0%;-0%;0%"/></numFmts>'+
+ '<fonts count="8"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF0E2A2B"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF5A6662"/><name val="Arial"/></font>'+
+ '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF8A4F06"/><name val="Arial"/></font><font><i/><sz val="10"/><color rgb="FF6B7570"/><name val="Arial"/></font>'+
+ '<font><sz val="10"/><color rgb="FF8A4F06"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts>'+
+ '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0E2A2B"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFBEFD9"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+ '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FFDDE1DD"/></bottom><diagonal/></border></borders>'+
+ '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="19">'+
+ '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+ '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+ '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+ '<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>'+
+ '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+ '<xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="166" fontId="4" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+ '<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+ '<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+ '<xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+ '<xf numFmtId="9" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="3" fontId="7" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+
+ '<xf numFmtId="9" fontId="7" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+
+ '<xf numFmtId="3" fontId="4" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>'+
+ '<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>'+
+ '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+function planilhaXml(f){ // f: {linhas:[[{v,s}]], larguras:[], fixa, filtro, ativa}
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>';
+  x+='<sheetViews><sheetView workbookViewId="0"'+(f.ativa?' tabSelected="1"':'')+' showGridLines="0">'+(f.fixa?'<pane ySplit="'+f.fixa+'" topLeftCell="A'+(f.fixa+1)+'" activePane="bottomLeft" state="frozen"/>':'')+'</sheetView></sheetViews>';
+  x+='<cols>'+f.larguras.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>';
+  f.linhas.forEach((l,ri)=>{ x+='<row r="'+(ri+1)+'"'+(ri+1===f.fixa?' ht="28" customHeight="1"':'')+'>';
+    (l||[]).forEach((c,ci)=>{ if(!c) return; const ref=colL(ci)+(ri+1), s=c.s||0;
+      if(typeof c.v==='number'&&isFinite(c.v)) x+='<c r="'+ref+'" s="'+s+'"><v>'+c.v+'</v></c>';
+      else if(c.v==null||c.v==='') x+='<c r="'+ref+'" s="'+s+'"/>';
+      else x+='<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+xe(c.v)+'</t></is></c>'; });
+    x+='</row>'; });
+  return x+'</sheetData>'+(f.filtro?'<autoFilter ref="'+f.filtro+'"/>':'')+'<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>';
+}
+function montarXlsx(abas){ // abas: [{nome, ...planilha}]
+  const n=abas.length, CT='application/vnd.openxmlformats-officedocument.spreadsheetml';
+  const arqs=[
+    {nome:'[Content_Types].xml',txt:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="'+CT+'.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="'+CT+'.styles+xml"/>'+abas.map((a,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="'+CT+'.worksheet+xml"/>').join('')+'</Types>'},
+    {nome:'_rels/.rels',txt:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {nome:'xl/workbook.xml',txt:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>'+
+      abas.map((a,i)=>'<sheet name="'+xe(a.nome)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets>'+
+      (abas.some(a=>a.filtro)?'<definedNames>'+abas.map((a,i)=>a.filtro?'<definedName name="_xlnm._FilterDatabase" localSheetId="'+i+'" hidden="1">'+xe("'"+a.nome.replace(/'/g,"''")+"'!"+a.filtro.replace(/([A-Z]+)(\d+)/g,'$$$1$$$2'))+'</definedName>':'').join('')+'</definedNames>':'')+'</workbook>'},
+    {nome:'xl/_rels/workbook.xml.rels',txt:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+abas.map((a,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+'<Relationship Id="rId'+(n+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {nome:'xl/styles.xml',txt:ESTILOS}
+  ].concat(abas.map((a,i)=>({nome:'xl/worksheets/sheet'+(i+1)+'.xml',txt:planilhaXml({...a,ativa:i===0})})));
+  return zipar(arqs,CT+'.sheet');
+}
+const nomeAba=(s,usados)=>{ let b=String(s).replace(/[\\\/\?\*\[\]:]/g,' ').trim().slice(0,31)||'Setor', n=b, i=2; while(usados.has(n.toLowerCase())) n=b.slice(0,28)+' '+(i++); usados.add(n.toLowerCase()); return n; };
+const estiloQtd=(n,und)=>ehTon(und)?XS.ton:(Number.isInteger(n)?XS.int:XS.dec);
+function comoContado(v,und){
+  if(!has(v)) return '';
+  const p=v.p&&v.p.length>1?v.p:null, f=n=>fmt(n,6);
+  if(v.m) return (p?'('+p.map(f).join(' + ')+')':f(v.q))+' volume(s) × '+f(v.m)+' '+und;
+  return p?'soma: '+p.map(f).join(' + '):'direto';
+}
+async function relatorio(deps, nomeArq){
+  if(!deps.length){ toast('Nenhum setor para o relatório.'); return; }
+  toast('Preparando o relatório…');
+  await flush().catch(()=>{});
+  let j, r;
+  try{ [j,r]=await Promise.all([api('contagem','GET',{data:S.date,cv:''}), api('contagem','GET',{acao:'ref',data:S.date})]); }
+  catch(e){ if(authFail(e)) return; toast(e.code==='rede'?'Sem sinal. Para baixar o relatório é preciso estar conectado.':'Não foi possível gerar o relatório: '+e.message); return; }
+  const cat=(j.catalogo&&j.catalogo.itens)||LISTA, itens=nkObj(j.itens||{}), obs=nkObj(j.obs||{}), fech=j.fech||{}, ref={};
+  Object.keys(r.ref||{}).forEach(d=>{ ref[d]={data:r.ref[d].data,itens:nkObj(r.ref[d].itens)}; });
+  const info=k=>{ const d=k.split(':')[0], c=k.slice(d.length+2), it=(cat[d]||[]).find(x=>String(x.c)===c); return it?{n:it.n,u:it.u}:(ITEM[k]?{n:ITEM[k].nome,u:ITEM[k].und}:{n:'(fora da lista atual)',u:''}); };
+  const usados=new Set(['resumo']), agora=new Date();
+  const T=(v,s)=>({v,s:s||XS.txt});
+  const resumoLin=[[T('Contagem de insumos · '+br(S.date),XS.tit)],[T('Baixado por '+S.me.nome+' em '+agora.toLocaleDateString('pt-BR')+' às '+hora(agora),XS.sub)],[],
+    ['Setor','Depósito','Aba da planilha','Contados','Total','Faltam','Andamento','Situação','Divergências','Observações'].map((x,i)=>T(x,[3,4,5,6,8,9].includes(i)?XS.cabR:XS.cab))];
+  const abas=[]; let sC=0,sT=0,sD=0,sO=0;
+  deps.forEach(d=>{
+    const ks=(cat[d.id]||[]).map(it=>K(d.id,it.c));
+    Object.keys(itens).forEach(k=>{ if(k.startsWith(d.id+':c')&&!ks.includes(k)) ks.push(k); });
+    const rd=ref[d.id]?ref[d.id].data:null, f=fech[d.id];
+    let nC=0,nD=0,nO=0; const lin=[];
+    ks.forEach(k=>{ const v=itens[k], it=info(k), o=obs[k], rv=ref[d.id]&&typeof ref[d.id].itens[k]==='number'?ref[d.id].itens[k]:null;
+      const cont=has(v); if(cont) nC++; if(o) nO++;
+      let vr=null; if(cont&&rv!=null){ if(rv>0) vr=(v.total-rv)/rv; else if(rv===0&&v.total===0) vr=0; }
+      const dv=vr!=null&&Math.abs(vr)>VAR_ALERTA; if(dv) nD++;
+      lin.push([T(k.slice(d.id.length+2)),T(it.n),T(it.u),
+        cont?{v:v.total,s:estiloQtd(v.total,it.u)}:T('',XS.txt), T(comoContado(v,it.u)),
+        rv!=null?{v:rv,s:estiloQtd(rv,it.u)}:T(''), vr!=null?{v:Math.round(vr*1000)/1000,s:dv?XS.vrW:XS.vr}:T(''),
+        T(cont?v.by||'':''), T(cont&&v.t?hora(v.t):''), T(o?o.txt+(o.by?' ('+o.by+')':''):'',XS.obs),
+        cont?(dv?T('Divergente',XS.sitW):T('Contado')):T('Não contado',XS.nao)]); });
+    const tot=ks.length; sC+=nC; sT+=tot; sD+=nD; sO+=nO;
+    const sit=f?'Fechada por '+(f.nome||'gestor')+' às '+hora(f.t):(nC?'Em andamento':'Não iniciada');
+    const cab=['Código','Insumo (descrição)','Unidade','Quantidade','Como foi contado',rd?'Última ('+brc(rd)+')':'Última contagem','Variação','Contou','Horário','Observação','Situação'].map((x,i)=>T(x,[3,5,6].includes(i)?XS.cabR:XS.cab));
+    const info2=[d.dep?'Depósito '+d.dep:'',d.aba?'aba '+d.aba:'',nC+' de '+tot+' contados',sit,rd?'comparado com '+br(rd):''].filter(Boolean).join(' · ');
+    const linhas=[[T(d.nome+' · contagem de '+br(S.date),XS.tit)],[T(info2,XS.sub)],[],cab].concat(lin);
+    if(!lin.length) linhas.push([T('Nenhum insumo cadastrado neste setor.',XS.nao)]);
+    abas.push({nome:nomeAba(d.nome,usados),linhas,larguras:[15,44,9,13,26,14,10,20,9,34,13],fixa:4,filtro:lin.length?'A4:K'+(4+lin.length):null});
+    resumoLin.push([T(d.nome,XS.neg),T(d.dep||''),T(d.aba||''),{v:nC,s:XS.int},{v:tot,s:XS.int},{v:tot-nC,s:XS.int},{v:tot?nC/tot:0,s:XS.pct},T(sit,f?XS.txt:(nC?XS.txt:XS.nao)),{v:nD,s:nD?XS.intW:XS.int},{v:nO,s:XS.int}]);
+  });
+  if(deps.length>1) resumoLin.push([T('Total',XS.neg),T(''),T(''),{v:sC,s:XS.intN},{v:sT,s:XS.intN},{v:sT-sC,s:XS.intN},{v:sT?sC/sT:0,s:XS.pctN},T(''),{v:sD,s:XS.intN},{v:sO,s:XS.intN}]);
+  resumoLin.push([],[T('Variação: diferença para a contagem anterior do setor. Acima de 30% aparece como divergente.',XS.sub)]);
+  const blob=montarXlsx([{nome:'Resumo',linhas:resumoLin,larguras:[24,11,20,11,9,9,12,30,13,13],fixa:4}].concat(abas));
+  download(nomeArq, blob);
+  toast('Relatório baixado ('+sC+' de '+sT+' itens contados).');
+}
 
 /* ---------- navegação, menu e perfil ---------- */
 const IC={
@@ -1016,7 +1152,8 @@ function renderMe(){
   $('#meBtn').textContent=S.me.nome.split(' ')[0];
   $('#menuWho').textContent=S.me.nome+' ('+S.me.login+') · '+papelTxt();
   $('#mAdmin').hidden=!gestor(); $('#mPainel').hidden=!gestor(); $('#mSenha').hidden=!!S.me.admin; $('#sideSenha').hidden=!!S.me.admin;
-  $('#dlBtn').hidden=!S.me.exporta; $('#pExp').hidden=!S.me.exporta;
+  $('#dlBtn').hidden=!S.me.exporta; $('#pExp').hidden=!S.me.exporta; $('#pCsv').hidden=!S.me.admin; $('#mRel').hidden=!S.me.exporta;
+  $('#dlBtn').textContent=S.me.admin?'Baixar do dia':'Relatório';
   $('#sideAv').textContent=iniciais(S.me.nome); $('#sideNome').textContent=S.me.nome;
   $('#sidePapel').textContent=S.me.admin?'Administrador geral':S.me.papel==='gestor'?'Gestor · '+myDeps().map(d=>d.nome).join(', '):'Contagem · '+myDeps().map(d=>d.nome).join(', ');
 }
@@ -1030,6 +1167,7 @@ function pedirSaida(){
 $('#mOut').onclick=pedirSaida; $('#sideOut').onclick=pedirSaida;
 $('#mAdmin').onclick=()=>{ $('#menu').hidden=true; go(S.adminTab&&tabsPermitidas().includes(S.adminTab)?S.adminTab:'users'); };
 $('#mPainel').onclick=()=>{ $('#menu').hidden=true; go('painel'); };
+$('#mRel').onclick=()=>{ $('#menu').hidden=true; relDia(); };
 
 /* ---------- trocar a própria senha ---------- */
 function abrirSenha(){ $('#menu').hidden=true; ['dsAtual','dsNova','dsConf'].forEach(i=>$('#'+i).value=''); $('#dsMsg').textContent=''; $('#dlgSenha').showModal(); $('#dsAtual').focus(); }

@@ -1,5 +1,6 @@
 // Funções compartilhadas pelas rotas da API (arquivos com "_" não viram rota no Vercel).
 const crypto = require('crypto');
+const BASE = require('./_catalogo');
 
 const DB_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const DB_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -7,19 +8,20 @@ const ADMIN_U = String(process.env.ADMIN_USUARIO || '').trim().toLowerCase();
 const ADMIN_S = String(process.env.ADMIN_SENHA || '');
 const ADMIN_NOME = String(process.env.ADMIN_NOME || 'Administrador');
 
-const DEPS = ['ALMOX', 'ETE', 'TMP', 'MAQUINA', 'EMBALAGEM'];
-const DEP_NOME = { ALMOX: 'Almoxarifado', ETE: 'ETE', TMP: 'TMP', MAQUINA: 'Máquina', EMBALAGEM: 'Embalagem' };
-const nomesDeps = d => (d || []).map(x => DEP_NOME[x] || x).join(', ') || 'nenhum';
-const LOG_DIAS = 5;                       // relatório guarda os últimos 5 dias
+const LOG_DIAS = 30;                      // relatório guarda os últimos 30 dias
 const CONT_VALIDADE = String(400 * 86400);
 const SESSAO_DIAS = 30;
 const SESSAO_TTL = 120;          // segundos sem sinal para liberar o login em outro aparelho
 const SESSAO_RENOVA = 30000;     // renova o sinal no máximo a cada 30 s
 const SID_ENCERRADA = 'encerrada'; // marca deixada quando o administrador encerra a sessão
+const SENHA_MIN = 6;             // senhas novas (as antigas continuam valendo)
+const RE_SETOR = /^[A-Z][A-Z0-9]{1,11}$/;
+const RE_CHAVE = /^[A-Z][A-Z0-9]{1,11}:(r\d{1,4}|c[A-Za-z0-9._-]{1,30})$/;
 
 const configOk = () => !!(DB_URL && DB_TOKEN && ADMIN_U && ADMIN_S);
 
 async function redis(cmds) {
+  if (!cmds.length) return [];
   const r = await fetch(DB_URL.replace(/\/$/, '') + '/pipeline', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + DB_TOKEN, 'Content-Type': 'application/json' },
@@ -28,6 +30,32 @@ async function redis(cmds) {
   if (!r.ok) throw new Error('banco respondeu ' + r.status);
   const out = await r.json();
   return out.map(x => { if (x.error) throw new Error(x.error); return x.result; });
+}
+const json = (s, d) => { try { const v = JSON.parse(s); return v == null ? d : v; } catch (e) { return d; } };
+const hash = flat => { const o = {}; for (let i = 0; i + 1 < (flat || []).length; i += 2) o[flat[i]] = flat[i + 1]; return o; };
+const nk = k => BASE.LEG[k] || k;   // chaves antigas (por linha) viram chaves por código
+
+/* ---------- setores ---------- */
+// guardados no banco em "setores"; enquanto ninguém enviar uma lista, valem os 5 originais
+function parseSetores(raw) {
+  const j = json(raw, null);
+  if (j && Array.isArray(j.lista) && j.lista.length) return j.lista;
+  return BASE.SETORES.map(s => ({ ...s, ativo: true }));
+}
+async function lerSetores() { const [r] = await redis([['GET', 'setores']]); return parseSetores(r); }
+const idsAtivos = l => l.filter(s => s.ativo !== false).map(s => s.id);
+const nomesDeps = (d, lista) => {
+  const m = {}; (lista || BASE.SETORES).forEach(s => { m[s.id] = s.nome; });
+  return (d || []).map(x => m[x] || x).join(', ') || 'nenhum';
+};
+
+/* ---------- lista de insumos ---------- */
+async function lerCatalogo() {
+  const [c, cv] = await redis([['GET', 'catalogo'], ['GET', 'catalogo:v']]);
+  const cat = json(c, null);
+  const salvo = !!(cat && cat.itens);
+  return { v: String(cv || 'base'), t: salvo ? cat.t : null, por: salvo ? cat.por : null, salvo,
+    itens: { ...BASE.ITENS, ...(salvo ? cat.itens : {}) } };
 }
 
 /* ---------- sessão assinada ---------- */
@@ -52,6 +80,7 @@ function aparelho(req) {
   const nav = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
   return so + (nav ? ' · ' + nav : '');
 }
+const ip = req => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || String((req.socket && req.socket.remoteAddress) || '');
 const cmdSessao = (login, sid, ap) => ['SET', 'sessao:' + login, JSON.stringify({ sid, t: Date.now(), ap }), 'EX', String(SESSAO_TTL)];
 
 /* ---------- senhas ---------- */
@@ -71,16 +100,17 @@ function iguais(a, b) {
 }
 
 /* ---------- usuários ---------- */
-function mestre() { return { login: ADMIN_U, nome: ADMIN_NOME, admin: true, ativo: true, deps: DEPS.slice(), v: 0 }; }
-async function lerUsuario(login) {
-  login = String(login || '').toLowerCase();
-  if (login === ADMIN_U) return mestre();
-  const [r] = await redis([['HGET', 'usuarios', login]]);
-  if (!r) return null;
-  const u = JSON.parse(r);
-  return { ...u, login, admin: false };
+// papéis: administrador geral (variáveis do Vercel), gestor de área e funcionário
+function mestre(setores) { return { login: ADMIN_U, nome: ADMIN_NOME, admin: true, ativo: true, exporta: true, deps: idsAtivos(setores), v: 0 }; }
+function normalizar(u, setores) {
+  const at = idsAtivos(setores);
+  u.setores = setores;
+  u.papel = u.admin ? 'admin' : (u.papel === 'gestor' ? 'gestor' : 'func');
+  u.deps = u.admin ? at : (u.deps || []).filter(d => at.includes(d));
+  return u;
 }
-const perfil = u => ({ login: u.login, nome: u.nome, admin: !!u.admin, deps: u.deps || [] });
+const perfil = u => ({ login: u.login, nome: u.nome, admin: !!u.admin, papel: u.papel || (u.admin ? 'admin' : 'func'), deps: u.deps || [], exporta: !!(u.admin || u.exporta) });
+const gestorOuAdmin = u => !!(u.admin || u.papel === 'gestor');
 
 // opcoes.escrita: aceita gravações de um aparelho que ficou sem sinal e perdeu a vez,
 // para que as contagens guardadas nele não se percam.
@@ -89,16 +119,18 @@ async function exigirUsuario(req, res, opcoes) {
   const p = conferirToken(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
   if (!p) { res.status(401).json({ erro: 'sessao' }); return null; }
   const login = String(p.u || '').toLowerCase();
-  let u, sess = null;
-  if (login === ADMIN_U) u = mestre();
+  let u, sess = null, setores;
+  if (login === ADMIN_U) { const [st] = await redis([['GET', 'setores']]); setores = parseSetores(st); u = mestre(setores); }
   else {
-    const [r, sr] = await redis([['HGET', 'usuarios', login], ['GET', 'sessao:' + login]]);
+    const [r, sr, st] = await redis([['HGET', 'usuarios', login], ['GET', 'sessao:' + login], ['GET', 'setores']]);
+    setores = parseSetores(st);
     u = r ? { ...JSON.parse(r), login, admin: false } : null;
-    try { sess = sr ? JSON.parse(sr) : null; } catch (e) { sess = null; }
+    sess = json(sr, null);
   }
   if (!u) { res.status(401).json({ erro: 'sessao' }); return null; }
   if (!u.ativo) { res.status(403).json({ erro: 'bloqueado' }); return null; }
   if ((u.v || 0) !== (p.v || 0)) { res.status(401).json({ erro: 'sessao' }); return null; }
+  normalizar(u, setores);
   u.sid = p.s; u.foraDeSessao = false;
   if (!u.admin) {
     if (sess && sess.sid !== p.s) {
@@ -112,27 +144,78 @@ async function exigirUsuario(req, res, opcoes) {
 }
 const sessaoLivre = s => !s || s.sid === SID_ENCERRADA;
 
-/* ---------- relatório ---------- */
+/* ---------- datas com contagem (para comparar com a anterior) ---------- */
 const diaSP = t => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t));
+const horaSP = t => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(new Date(t));
+const scoreData = d => String(Number(String(d).replace(/-/g, '')));
+const cmdsDatas = (data, deps) => [...new Set(deps)].map(d => ['ZADD', 'datas:' + d, scoreData(data), data]);
+// na primeira vez, monta o índice de datas a partir das contagens que já existem
+async function garantirDatas() {
+  const [ok] = await redis([['GET', 'datas:ok']]);
+  if (ok) return;
+  let cursor = '0'; const keys = []; let voltas = 0;
+  do {
+    const [r] = await redis([['SCAN', cursor, 'MATCH', 'cont:*', 'COUNT', '500']]);
+    cursor = String(r[0]); keys.push(...(r[1] || []));
+  } while (cursor !== '0' && ++voltas < 50);
+  const datas = keys.map(k => k.slice(5)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const cmds = [];
+  for (let i = 0; i < datas.length; i += 100) {
+    const parte = datas.slice(i, i + 100);
+    const hk = await redis(parte.map(d => ['HKEYS', 'cont:' + d]));
+    parte.forEach((d, j) => { const deps = (hk[j] || []).map(f => f.split(':')[0]); cmds.push(...cmdsDatas(d, deps)); });
+  }
+  for (let i = 0; i < cmds.length; i += 500) await redis(cmds.slice(i, i + 500));
+  await redis([['SET', 'datas:ok', '1']]);
+}
+// para cada setor: a contagem mais recente antes de "data", com o total de cada item
+async function referencias(deps, data) {
+  if (!deps.length) return {};
+  await garantirDatas();
+  const r = await redis(deps.map(d => ['ZREVRANGEBYSCORE', 'datas:' + d, '(' + scoreData(data), '-inf', 'LIMIT', '0', '1']));
+  const porData = {}, out = {};
+  deps.forEach((d, i) => { const dt = (r[i] || [])[0]; if (dt) { (porData[dt] = porData[dt] || []).push(d); out[d] = { data: dt, itens: {} }; } });
+  const ds = Object.keys(porData);
+  const hs = await redis(ds.map(dt => ['HGETALL', 'cont:' + dt]));
+  ds.forEach((dt, i) => {
+    const o = hash(hs[i]);
+    for (const k in o) {
+      const dep = k.split(':')[0];
+      if (!out[dep] || out[dep].data !== dt) continue;
+      const v = json(o[k], null); if (v && typeof v.total === 'number') out[dep].itens[nk(k)] = v.total;
+    }
+  });
+  return out;
+}
+
+/* ---------- relatório ---------- */
 function cmdsLog(ev) {
   const k = 'log:' + diaSP(ev.t);
   return [['RPUSH', k, JSON.stringify(ev)], ['EXPIRE', k, String((LOG_DIAS + 1) * 86400)]];
 }
 function ultimosDias(n) {
   const out = [], agora = Date.now();
-  for (let i = 0; i < n; i++) out.push(diaSP(agora - i * 86400000));
-  return [...new Set(out)];
+  for (let i = 0; i < n + 1 && out.length < n; i++) { const d = diaSP(agora - i * 86400000); if (!out.includes(d)) out.push(d); }
+  return out;
 }
+const setorDoEvento = e => e.setor || (e.k ? String(e.k).split(':')[0] : '');
 
 function base(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!configOk()) { res.status(500).json({ erro: 'configuracao', banco: !!(DB_URL && DB_TOKEN), admin: !!(ADMIN_U && ADMIN_S) }); return false; }
   return true;
 }
-const corpo = req => (req.body && typeof req.body === 'object') ? req.body : {};
+const corpo = req => {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') return json(req.body, {});
+  return {};
+};
 
 module.exports = {
-  DEPS, nomesDeps, LOG_DIAS, CONT_VALIDADE, ADMIN_U, ADMIN_S, configOk, redis,
-  SID_ENCERRADA, sessaoLivre, novoToken, novoSid, aparelho, cmdSessao, SESSAO_TTL, conferirToken, hashSenha, senhaConfere, iguais, lerUsuario, perfil, exigirUsuario,
-  cmdsLog, ultimosDias, base, corpo, DB_OK: () => !!(DB_URL && DB_TOKEN)
+  BASE, LOG_DIAS, CONT_VALIDADE, ADMIN_U, ADMIN_S, SENHA_MIN, RE_SETOR, RE_CHAVE, configOk, redis, json, hash, nk,
+  parseSetores, lerSetores, idsAtivos, nomesDeps, lerCatalogo,
+  SID_ENCERRADA, sessaoLivre, novoToken, novoSid, aparelho, ip, cmdSessao, SESSAO_TTL, conferirToken, hashSenha, senhaConfere, iguais,
+  mestre, normalizar, perfil, gestorOuAdmin, exigirUsuario,
+  diaSP, horaSP, scoreData, cmdsDatas, garantirDatas, referencias,
+  cmdsLog, ultimosDias, setorDoEvento, base, corpo, DB_OK: () => !!(DB_URL && DB_TOKEN)
 };

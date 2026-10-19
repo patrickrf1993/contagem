@@ -53,11 +53,13 @@ module.exports = async (req, res) => {
       const [v, cv] = await L.redis([['GET', kVer], ['GET', 'catalogo:v']]);
       const ver = Number(v || 0);
       // lista de insumos (só vai quando mudou)
+      // a versão leva os setores liberados: liberar ou tirar um setor faz o aparelho receber a lista de novo
       let catalogo;
-      if (String(cv || 'base') !== String(req.query.cv || '')) {
+      const cvUser = String(cv || 'base') + '|' + u.deps.slice().sort().join(',');
+      if (cvUser !== String(req.query.cv || '')) {
         const cat = await L.lerCatalogo();
-        const itens = {}; u.deps.forEach(d => { if (cat.itens[d]) itens[d] = cat.itens[d]; });
-        catalogo = { v: cat.v, t: cat.t, por: cat.por, itens };
+        const itens = {}; u.deps.forEach(d => { itens[d] = cat.itens[d] || []; });
+        catalogo = { v: cvUser, t: cat.t, por: cat.por, itens };
       }
       const extra = { perfil: L.perfil(u), catalogo, setores: u.setores };
       if (req.query.v !== undefined && String(ver) === String(req.query.v)) return res.status(200).json({ v: ver, ...extra });

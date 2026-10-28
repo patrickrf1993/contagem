@@ -25,6 +25,8 @@ module.exports = async (req, res) => {
     const u = await L.exigirUsuario(req, res); if (!u) return;
     if (!L.gestorOuAdmin(u)) return res.status(403).json({ erro: 'admin' });
     const nomeSetor = id => (u.setores.find(s => s.id === id) || {}).nome || id;
+    // perfil atual de quem está usando: a tela de gestão atualiza setores e permissões sem precisar relogar
+    const eu = { perfil: L.perfil(u), setores: u.setores };
 
     if (req.method === 'GET') {
       const acao = String(req.query.acao || '');
@@ -44,13 +46,13 @@ module.exports = async (req, res) => {
         }
         lista.sort((a, b) => (a.papel === b.papel ? 0 : a.papel === 'gestor' ? -1 : 1) || a.nome.localeCompare(b.nome, 'pt-BR'));
         const gestores = u.admin ? lista0.filter(x => papelDe(x.r) === 'gestor').map(x => ({ login: x.login, nome: x.r.nome, deps: x.r.deps || [], exporta: !!x.r.exporta })) : [];
-        return res.status(200).json({ mestre: L.perfil(u), adminLogin: L.ADMIN_U, usuarios: lista, gestores });
+        return res.status(200).json({ mestre: L.perfil(u), adminLogin: L.ADMIN_U, usuarios: lista, gestores, eu });
       }
 
       if (acao === 'catalogo') {
         const cat = await L.lerCatalogo();
         const itens = {}; (u.admin ? Object.keys(cat.itens) : u.deps).forEach(d => { if (cat.itens[d]) itens[d] = cat.itens[d]; });
-        return res.status(200).json({ v: cat.v, catalogo: { t: cat.t, por: cat.por, itens }, salvo: cat.salvo });
+        return res.status(200).json({ v: cat.v, catalogo: { t: cat.t, por: cat.por, itens }, salvo: cat.salvo, eu });
       }
 
       if (acao === 'relatorio') {
@@ -63,7 +65,7 @@ module.exports = async (req, res) => {
         out.forEach(arr => (arr || []).forEach(s => { const e = L.json(s, null); if (e && eventoVisivel(u, e, meus)) eventos.push(e); }));
         eventos.sort((a, b) => b.t - a.t);
         const cortado = eventos.length > 15000; if (cortado) eventos = eventos.slice(0, 15000);
-        return res.status(200).json({ dias, eventos, cortado, maxDias: L.LOG_DIAS });
+        return res.status(200).json({ dias, eventos, cortado, maxDias: L.LOG_DIAS, eu });
       }
 
       if (acao === 'painel') {
@@ -106,7 +108,7 @@ module.exports = async (req, res) => {
         const nomes = {}; for (const k in info) nomes[k] = info[k].n;
         eventos.forEach(e => { if (e.k) e.itemNome = nomes[L.nk(e.k)] || ''; });
         return res.status(200).json({ data, setores, horas, divergencias: divergencias.slice(0, 30), nDivergencias: divergencias.length, online, eventos,
-          refDatas: Object.fromEntries(Object.entries(ref).map(([d, r]) => [d, r.data])) });
+          refDatas: Object.fromEntries(Object.entries(ref).map(([d, r]) => [d, r.data])), eu });
       }
 
       if (acao === 'backup') {

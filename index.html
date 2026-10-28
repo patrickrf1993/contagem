@@ -761,6 +761,8 @@ async function api(path, method, params, body){
   finally{ clearTimeout(tm); }
   let j=null; try{ j=await r.json(); }catch(e){}
   if(!r.ok){ const e=new Error((j&&(j.msg||j.erro))||('HTTP '+r.status)); e.status=r.status; e.code=j&&j.erro; e.ap=j&&j.ap; throw e; }
+  // telas de gestão: o servidor manda o perfil atual, para setores liberados ou retirados aparecerem sem relogar
+  if(path==='admin' && j && j.eu && S.token){ if(j.eu.setores) applySetores(j.eu.setores); applyPerfil(j.eu.perfil); }
   return j;
 }
 function authFail(e){
@@ -768,6 +770,8 @@ function authFail(e){
   if(e.status===401 && e.code==='outra_sessao'){ logout('Sua conta foi aberta em outro aparelho'+(e.ap?' ('+e.ap+')':'')+'. Esta sessão foi encerrada.',true); return true; }
   if(e.status===401){ logout('Sua sessão terminou. Entre de novo.',true); return true; }
   if(e.status===403 && e.code==='bloqueado'){ logout('Seu acesso foi bloqueado. Fale com o administrador.'); return true; }
+  // deixou de ser gestor com a tela de gestão aberta: volta para a contagem, que atualiza o perfil
+  if(e.status===403 && e.code==='admin' && S.view!=='count'){ toast('Seu tipo de acesso foi alterado pelo administrador.'); show('count'); return true; }
   return false;
 }
 function applyPerfil(p){
@@ -776,21 +780,36 @@ function applyPerfil(p){
   // setor liberado ou retirado: busca de novo as contagens do dia e a comparação com a anterior
   if(S.me&&JSON.stringify(S.me.deps)!==JSON.stringify(p.deps)){ S.ver=null; S.forcar=true; S.refDate=null; setTimeout(poll,300); }
   S.me=p; ls.set('perfil',p);
-  if(before!==JSON.stringify(p)){ renderMe(); renderNav(); if(S.view==='count') build(); }
+  if(before!==JSON.stringify(p)){ renderMe(); renderNav(); if(S.view==='count') build();
+    if(S.view==='admin'){ if(!tabsPermitidas().includes(S.adminTab)) go('users'); else $('#aEb').textContent=S.me.admin?'Gestão':'Gestão · '+myDeps().map(d=>d.nome).join(', '); } }
+}
+// o app pode voltar do segundo plano no dia seguinte sem recarregar a página: passa para o dia atual.
+// Data escolhida no calendário vale só até o fim do dia em que foi escolhida.
+function conferirDia(semTela){
+  const h=today();
+  if(S.date===h || (S.diaManual===h)) return false;
+  S.diaManual=null; S.date=h; $('#date').value=h; $('#pDate').value=h;
+  if(!S.token) return true;
+  toast('Novo dia: contagem de '+br(h)+'.');
+  if(semTela) return true;
+  if(S.view==='count'){ loadRemoteCache(); loadRefCache(); S.ver=null; build(); }
+  else if(S.view==='painel'){ S.painel=null; loadPainel(); }
+  return true;
 }
 
 /* ---------- sincronização ---------- */
 let pollT=null, pollBusy=false;
 async function poll(){
   if(pollBusy || !S.token || S.view!=='count') return;
+  conferirDia();
   pollBusy=true; const date=S.date;
   try{
     await flush();
     const params={data:date, cv:S.cv||''}; if(S.ver!=null) params.v=S.ver;
     const j=await api('contagem','GET',params);
-    applyPerfil(j.perfil); if(j.setores) applySetores(j.setores);
+    // lista de insumos antes do perfil: um setor recém-liberado já abre com os itens
+    if(j.setores) applySetores(j.setores); if(j.catalogo) aplicarLista(j.catalogo); applyPerfil(j.perfil);
     if(date!==S.date) return;
-    if(j.catalogo) aplicarLista(j.catalogo);
     if(j.fatores){ S.fatores=nkObj(j.fatores); if(S.me) ls.set('fatores:'+L0(),S.fatores); }
     if(j.itens){
       const before=S.remote, beforeObs=S.obs, fAntes=JSON.stringify(S.fech);
@@ -820,7 +839,7 @@ async function loadRef(){
   }catch(e){} finally{ refBusy=false; }
 }
 function schedule(){ clearInterval(pollT); pollT=setInterval(()=>{ if(!document.hidden) poll(); }, POLL_MS); }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ conferirDia(); poll(); } });
 window.addEventListener('online',()=>poll());
 window.addEventListener('offline',()=>{ S.online=false; S.wasOff=true; setLive('off','Sem sinal · o que você digitar fica guardado'); });
 
@@ -1310,9 +1329,9 @@ function show(v){
   $('#vLogin').hidden=v!=='login'; $('#shell').hidden=v==='login';
   $('#vCount').hidden=v!=='count'; $('#vPainel').hidden=v!=='painel'; $('#vAdmin').hidden=v!=='admin';
   clearInterval(pollT); clearInterval(painelT);
-  if(v!=='login'){ loadLista(); renderMe(); }
+  if(v!=='login'){ conferirDia(true); loadLista(); renderMe(); }
   if(v==='count'){ loadPending(); loadRemoteCache(); loadFatores(); loadRefCache(); build(); S.ver=null; poll(); schedule(); }
-  if(v==='painel'){ loadPending(); $('#pDate').value=S.date; loadPainel(); painelT=setInterval(()=>{ if(!document.hidden) loadPainel(); },15000); }
+  if(v==='painel'){ loadPending(); $('#pDate').value=S.date; loadPainel(); painelT=setInterval(()=>{ if(!document.hidden && !conferirDia()) loadPainel(); },15000); }
   if(v==='admin'){ if(!tabsPermitidas().includes(S.adminTab)) S.adminTab='users'; openTab(S.adminTab); }
   renderNav(); scrollTo({top:0});
 }
@@ -1428,7 +1447,7 @@ function renderPainel(){
   if(!j.eventos.length) pe.append(el('p','pnone','Nenhuma movimentação neste dia.'));
   j.eventos.forEach(e=>pe.append(linhaEvento(e,true)));
 }
-$('#pDate').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; $('#date').value=S.date; S.painel=null; loadPainel(); };
+$('#pDate').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; S.diaManual=S.date===today()?null:today(); $('#date').value=S.date; S.painel=null; loadPainel(); };
 
 /* ---------- administração ---------- */
 function openTab(t){
@@ -1880,7 +1899,7 @@ $('#catFile').addEventListener('change',async e=>{
 window.addEventListener('pagehide',()=>{ if(S.token && S.me && !S.me.admin && !nPend()) sair(S.token,true); });
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 $('#date').value=S.date;
-$('#date').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; $('#pDate').value=S.date; loadRemoteCache(); loadRefCache(); S.ver=null; build(); poll(); };
+$('#date').onchange=e=>{ if(!e.target.value) return; S.date=e.target.value; S.diaManual=S.date===today()?null:today(); $('#pDate').value=S.date; loadRemoteCache(); loadRefCache(); S.ver=null; build(); poll(); };
 const busca=e=>{ S.q=e.target.value; $('#q').value=S.q; $('#qD').value=S.q; build(); };
 $('#q').oninput=busca; $('#qD').oninput=busca;
 $('#lgUser').value=ls.get('ultimoLogin','');

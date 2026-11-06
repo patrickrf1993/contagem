@@ -57,6 +57,10 @@ input[type=date]{border:0;background:var(--soft);border-radius:8px;padding:7px 8
 .filtros button{flex:0 0 auto;border:0;background:var(--soft);border-radius:8px;padding:0 12px;min-height:36px;color:var(--muted);font-size:14px;white-space:nowrap}
 .filtros button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);font-weight:600}
 .filtros b{font-weight:inherit;font-variant-numeric:tabular-nums;margin-left:4px}
+.filtros .modo{display:flex;flex:0 0 auto;gap:2px;background:var(--soft);border-radius:8px;padding:2px;margin-right:6px}
+.filtros .modo button{min-height:32px;background:none}
+.filtros .modo button[aria-pressed=true]{background:var(--accent);color:#fff}
+.t-inativo{background:var(--soft);color:var(--muted);font-weight:600;vertical-align:1px}
 ul{list-style:none;margin:0;padding:0}
 #list{padding-bottom:130px}
 li.it{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -712,7 +716,7 @@ let LISTA={}, ITEM={};
 function montarItem(){ ITEM={}; Object.keys(LISTA).forEach(d=>(LISTA[d]||[]).forEach(it=>ITEM[d+':c'+it.c]={nome:it.n,und:it.u,cod:it.c})); }
 function juntarItens(itens){ Object.keys(itens||{}).forEach(d=>(itens[d]||[]).forEach(it=>{ if(!ITEM[d+':c'+it.c]) ITEM[d+':c'+it.c]={nome:it.n,und:it.u,cod:it.c}; })); }
 
-const S={date:today(), dep:ls.get('dep',''), q:'', filtro:'todos',
+const S={date:today(), dep:ls.get('dep',''), q:'', filtro:'todos', modo:ls.get('modo','ativos')==='todos'?'todos':'ativos',
   token:ls.get('token',''), me:ls.get('perfil',null), remote:{}, obs:{}, fech:{}, ver:null,
   pending:{}, pobs:{}, sending:false, view:null, online:true, fatores:{}, ref:{}, refDate:null, cv:'', adminTab:'users'};
 const L0=()=>S.me?S.me.login:'';
@@ -736,6 +740,11 @@ function aplicarLista(c){ if(!c||!c.itens) return; const tinha=!!S.cv; ls.set('l
 function loadRefCache(){ const c=S.me&&ls.get('ref:'+L0(),null); if(c&&c.date===S.date){ S.ref=c.ref||{}; S.refDate=c.date; } else { S.ref={}; S.refDate=null; } }
 const K=(dep,cod)=>dep+':c'+cod;
 const lista=id=>LISTA[id]||[];
+// item marcado como inativo na planilha (coluna Ativo = Não)
+const inativo=it=>it.a===false;
+const temInativos=id=>lista(id).some(inativo);
+// lista da tela de contagem: em "Só ativos" some com os inativos (menos os que já foram contados no dia)
+const listaC=id=>S.modo==='todos'?lista(id):lista(id).filter(it=>!inativo(it)||has(val(K(id,it.c))));
 const has=v=>!!(v&&v.total!=null&&!isNaN(v.total));
 function val(key){ const p=S.pending[S.date]; if(p && key in p) return p[key]&&p[key].vazio?null:p[key]; return S.remote[key]; }
 function obsDe(key){ const p=S.pobs[S.date]; if(p && key in p) return p[key]?{txt:p[key],pend:true}:null; return S.obs[key]||null; }
@@ -744,7 +753,7 @@ const refData=dep=>S.ref[dep]?S.ref[dep].data:null;
 function varDe(key,total){ const r=refVal(key); if(r==null||r<=0||total==null||isNaN(total)) return null; return (total-r)/r; }
 const divergente=(key,v)=>{ if(!has(v)) return false; const x=varDe(key,v.total); return x!=null&&Math.abs(x)>VAR_ALERTA; };
 const myDeps=()=>DEPS.filter(d=>d.ativo!==false && S.me && S.me.deps.includes(d.id));
-const nDone=id=>lista(id).filter(it=>has(val(K(id,it.c)))).length;
+const nDone=id=>listaC(id).filter(it=>has(val(K(id,it.c)))).length;
 function setLive(kind,txt){
   const l=$('#live'); l.className='live'+(kind?' '+kind:''); $('#liveTxt').textContent=txt;
   const d=$('#liveD'); d.className='livepill d-only'+(kind?' '+kind:''); d.lastChild.textContent=kind==='off'?'Sem sinal':kind==='busy'?'Enviando…':'Ao vivo';
@@ -899,14 +908,14 @@ function tabs(){
   let all=0,tot=0;
   mine.forEach(d=>{
     const b=el('button','dep',d.nome); b.setAttribute('role','tab');
-    const n=nDone(d.id), t=lista(d.id).length; all+=n; tot+=t;
+    const n=nDone(d.id), t=listaC(d.id).length; all+=n; tot+=t;
     const f=S.fech[d.id];
     b.append(el('span',null,f?'fechado':n+'/'+t)); b.classList.toggle('full',n===t&&t>0); b.classList.toggle('closed',!!f);
     b.setAttribute('aria-selected',d.id===S.dep);
     b.onclick=()=>{S.dep=d.id; ls.set('dep',d.id); build(); scrollTo({top:0});};
     box.append(b);
   });
-  const d=depInfo(S.dep), n=mine.length?nDone(S.dep):0, t=lista(S.dep).length;
+  const d=depInfo(S.dep), n=mine.length?nDone(S.dep):0, t=listaC(S.dep).length;
   const p=$('#prog'); p.textContent='';
   if(mine.length && d){ p.append(el('b',null,all+' de '+tot),' contados'+(mine.length>1?' nos seus setores':'')+(d.dep?' · dep. '+d.dep:'')); }
   // cabeçalho do computador
@@ -917,9 +926,16 @@ function tabs(){
   if(d){ const s=el('span'); s.append(el('b',null,n+' de '+t),' contados'+(t-n>0?' · faltam '+(t-n):'')); const bar=el('div','bar'); const i=el('i'); i.style.width=(t?Math.round(100*n/t):0)+'%'; bar.append(i); dp.append(s,bar); }
   const r=refData(S.dep); $('#thRef').textContent=r?'Últ. '+brc(r):'Última';
   // filtros com contagem
-  const L1=lista(S.dep), cnt={todos:L1.length, faltam:L1.filter(it=>!has(val(K(S.dep,it.c)))).length,
+  const L1=listaC(S.dep), cnt={todos:L1.length, faltam:L1.filter(it=>!has(val(K(S.dep,it.c)))).length,
     div:L1.filter(it=>divergente(K(S.dep,it.c),val(K(S.dep,it.c)))).length, obs:L1.filter(it=>obsDe(K(S.dep,it.c))).length};
+  const LA=lista(S.dep), nAt=LA.filter(it=>!inativo(it)).length;
   ['#filtrosM','#filtrosD'].forEach(sel=>{ const fb=$(sel); fb.innerHTML='';
+    if(temInativos(S.dep)){ const g=el('div','modo'); g.setAttribute('role','group'); g.setAttribute('aria-label','Itens da contagem');
+      [['ativos','Só ativos',nAt],['todos','Contagem total',LA.length]].forEach(([id,txt,n])=>{
+        const b=el('button',null,txt); b.append(el('b',null,n)); b.setAttribute('aria-pressed',S.modo===id);
+        b.title=id==='ativos'?'Conta só os itens ativos. Os inativos mantêm o último saldo na planilha.':'Conta todos os itens do setor, inclusive os inativos.';
+        b.onclick=()=>{ if(S.modo===id) return; S.modo=id; ls.set('modo',id); build(); }; g.append(b); });
+      fb.append(g); }
     FILTROS.forEach(([id,txt])=>{ if((id==='div'||id==='obs') && !cnt[id] && S.filtro!==id) return;
       const b=el('button',null,txt); b.append(el('b',null,cnt[id])); b.setAttribute('aria-pressed',S.filtro===id);
       b.onclick=()=>{ S.filtro=id; build(); }; fb.append(b); }); });
@@ -944,7 +960,7 @@ function build(){
   const ul=$('#list'); ul.innerHTML='';
   if(!myDeps().length){ ul.append(el('li','none','Nenhum setor de contagem liberado para você ainda. Fale com o seu gestor ou com o administrador.')); return; }
   if(!lista(S.dep).length){ ul.append(el('li','none',S.cv?'Este setor ainda não tem insumos cadastrados. O gestor ou o administrador envia a lista em Insumos.':'Carregando a lista de insumos…')); return; }
-  const items=lista(S.dep).filter(match);
+  const items=listaC(S.dep).filter(match);
   if(!items.length){ ul.append(el('li','none',S.filtro==='faltam'&&!S.q?'Tudo contado neste setor.':S.filtro==='div'&&!S.q?'Nenhuma divergência acima de 30%.':'Nenhum insumo com esse nome ou código.')); return; }
   items.forEach(it=>{ const li=item(it); nodes.set(K(S.dep,it.c),li); ul.append(li); });
 }
@@ -960,7 +976,7 @@ function applyRemote(before,beforeObs){
 }
 function item(it){
   const cod=it.c, nome=it.n, und=it.u, fatorCat=it.f, key=K(S.dep,it.c), dep=S.dep;
-  const li=el('li','it');
+  const li=el('li','it'+(inativo(it)?' inat':''));
   li.innerHTML='<span class="cod"></span>'+
     '<div class="txt"><div class="nm"></div><div class="sub"></div><div class="obsl" hidden></div><div class="parc"></div>'+
     '<div class="links"><button class="x mv" type="button">Contar por volumes</button><button class="x add" type="button">+ Somar</button><button class="x ob" type="button">Observação</button></div></div>'+
@@ -969,6 +985,7 @@ function item(it){
     '<div class="vol"><input class="v" inputmode="decimal" enterkeyhint="next" aria-label="Volumes"><small>volumes ×</small><input class="f" inputmode="decimal" aria-label="Quantidade por volume"><span class="eq"></span></div>'+
     '<div class="soma"><small class="sl">Somar</small><input class="s" inputmode="decimal" enterkeyhint="done" aria-label="Quantidade a somar"><button type="button">Somar</button><small class="sh"></small></div>';
   li.querySelector('.nm').textContent=nome;
+  if(inativo(it)){ const tg=el('span','tag t-inativo','inativo'); tg.title='Item inativo na planilha: fora da contagem rápida'; li.querySelector('.nm').append(' ',tg); }
   li.querySelector('.cod').textContent=cod;
   li.querySelector('.u').textContent=und;
   const q=li.querySelector('.q'), v=li.querySelector('.v'), f=li.querySelector('.f'), x=li.querySelector('.mv'), add=li.querySelector('.add'), ob=li.querySelector('.ob'),
@@ -1081,9 +1098,9 @@ function next(li){ const n=li.nextElementSibling; if(!n||!n.classList.contains('
 
 /* ---------- fechar a contagem do setor ---------- */
 async function fecharSetor(){
-  const d=S.dep, t=lista(d).length, n=nDone(d), falta=t-n;
+  const d=S.dep, t=listaC(d).length, n=nDone(d), falta=t-n;
   if(!confirm((falta?'Ainda faltam '+falta+' de '+t+' itens em '+depNome(d)+'. Fechar a contagem mesmo assim?':'Fechar a contagem de '+depNome(d)+' de '+br(S.date)+'?')+'\n\nDepois de fechada, ninguém altera mais os valores deste dia. Para reabrir é preciso informar o motivo.')) return;
-  try{ await flush(); const j=await api('contagem','POST',null,{acao:'fechar',data:S.date,setor:d}); S.fech[d]=j.fech; S.ver=null; cacheRemote(); build(); toast('Contagem de '+depNome(d)+' fechada.'); poll(); }
+  try{ await flush(); const j=await api('contagem','POST',null,{acao:'fechar',data:S.date,setor:d,modo:S.modo}); S.fech[d]=j.fech; S.ver=null; cacheRemote(); build(); toast('Contagem de '+depNome(d)+' fechada.'); poll(); }
   catch(e){ if(!authFail(e)) toast(e.code==='rede'?'Sem sinal. Para fechar a contagem é preciso estar conectado.':e.message); }
 }
 async function reabrirSetor(){
@@ -1842,17 +1859,19 @@ function renderCat(){
   const L1=listaAtual(), esc=catEscopo(), tot=esc.reduce((a,d)=>a+(L1[d.id]||[]).length,0);
   $('#catInfo').textContent = S.catSalvo&&S.catAtual.t ? (tot+' insumos · lista enviada por '+S.catAtual.por+' em '+new Date(S.catAtual.t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))
     : (tot+' insumos · lista original (nenhuma lista enviada ainda)');
+  const nIn=esc.reduce((a,d)=>a+(L1[d.id]||[]).filter(inativo).length,0);
+  if(nIn) $('#catInfo').textContent+=' · '+(tot-nIn)+' ativos, '+nIn+' inativos';
   const sel=$('#catDep'), keep=sel.value; sel.innerHTML='';
   esc.forEach(d=>sel.append(new Option(d.nome+' ('+(L1[d.id]||[]).length+')',d.id))); sel.value=[...sel.options].some(o=>o.value===keep)?keep:(esc[0]?esc[0].id:'');
   const box=$('#catList'); box.innerHTML='';
   const l=L1[sel.value]||[];
   if(!l.length) box.append(el('p','none','Nenhum insumo neste setor. Envie a lista gerada pela macro.'));
-  l.forEach(it=>{ const r=el('div','ci'); r.append(el('span','c',it.c),el('span',null,it.n),el('span','u',it.u||''),el('span','c',it.f?'vol. '+fmt(it.f,6):'')); box.append(r); });
+  l.forEach(it=>{ const r=el('div','ci'); r.append(el('span','c',it.c),el('span',null,it.n),el('span','u',it.u||''),el('span','c',(it.f?'vol. '+fmt(it.f,6):'')+(inativo(it)?(it.f?' · ':'')+'inativo':''))); box.append(r); });
 }
 $('#catDep').addEventListener('change',renderCat);
 function lerInsumos(txt){
   const {col,linhas}=lerCSV(txt);
-  const iS=col('SETOR'), iC=col('CODIGO'), iN=col('NOME'), iU=col('UND'), iF=col('FATOR');
+  const iS=col('SETOR'), iC=col('CODIGO'), iN=col('NOME'), iU=col('UND'), iF=col('FATOR'), iA=col('ATIVO');
   if(iS<0||iC<0) throw new Error('O arquivo precisa das colunas SETOR e CODIGO. Use o arquivo gerado pela macro ExportarInsumos.');
   const itens={}, erros=[], esc=catEscopo().map(d=>d.id);
   linhas.forEach((p,n)=>{ const c=String(p[iC]||'').trim(); if(!c) return;
@@ -1860,7 +1879,10 @@ function lerInsumos(txt){
     if(!d||depInfo(d).ativo===false){ erros.push('linha '+(n+2)+': setor "'+p[iS]+'" não está cadastrado'+(S.me.admin?' (cadastre em Setores)':'')); return; }
     if(!esc.includes(d)){ erros.push('linha '+(n+2)+': o setor '+depNome(d)+' não é da sua área'); return; }
     const fRaw=iF>=0?String(p[iF]||'').trim():''; const f=fRaw?Number(fRaw.replace(',','.')):null;
-    (itens[d]||=[]).push({c, n:iN>=0?String(p[iN]||'').trim():c, u:iU>=0?String(p[iU]||'').trim():'', f:f&&isFinite(f)&&f>0?f:null}); });
+    const at=iA>=0?!/^n/i.test(String(p[iA]||'').trim()):true;   // ATIVO: Não/Nao/N = inativo; vazio = ativo
+    const reg={c, n:iN>=0?String(p[iN]||'').trim():c, u:iU>=0?String(p[iU]||'').trim():'', f:f&&isFinite(f)&&f>0?f:null};
+    if(!at) reg.a=false;
+    (itens[d]||=[]).push(reg); });
   if(erros.length) throw new Error(erros.slice(0,5).join('\n')+(erros.length>5?'\n… e mais '+(erros.length-5):''));
   if(!Object.keys(itens).length) throw new Error('Nenhum insumo no arquivo.');
   return itens;
@@ -1875,13 +1897,14 @@ $('#catFile').addEventListener('change',async e=>{
     if(!itens[d.id]){ d0.append(el('span','dname',d.nome+': não veio no arquivo, a lista atual é mantida')); return; }
     const a=new Map((antes[d.id]||[]).map(x=>[x.c,x])), b=new Map(itens[d.id].map(x=>[x.c,x]));
     const add=[...b.values()].filter(x=>!a.has(x.c)), rem=[...a.values()].filter(x=>!b.has(x.c));
-    const chg=[...b.values()].filter(x=>a.has(x.c)&&(a.get(x.c).n!==x.n||String(a.get(x.c).u||'')!==x.u||(a.get(x.c).f||null)!==(x.f||null)));
+    const chg=[...b.values()].filter(x=>a.has(x.c)&&(a.get(x.c).n!==x.n||String(a.get(x.c).u||'')!==x.u||(a.get(x.c).f||null)!==(x.f||null)||inativo(a.get(x.c))!==inativo(x)));
     nMud+=add.length+rem.length+chg.length;
     if(!add.length&&!rem.length&&!chg.length){ d0.append(el('span','dname',d.nome+': sem mudanças ('+b.size+' itens)')); return; }
     d0.append(el('span','dname',d.nome+' ('+b.size+' itens)')); const ul=el('ul');
     add.forEach(x=>ul.append(el('li','add','+ '+x.c+' · '+x.n)));
     rem.forEach(x=>ul.append(el('li','rem','− '+x.c+' · '+x.n)));
-    chg.forEach(x=>ul.append(el('li','chg','✎ '+x.c+' · '+x.n)));
+    chg.forEach(x=>{ const y=a.get(x.c), so=inativo(y)!==inativo(x)&&y.n===x.n&&String(y.u||'')===x.u&&(y.f||null)===(x.f||null);
+      ul.append(el('li','chg','✎ '+x.c+' · '+x.n+(so?(inativo(x)?' (passa a inativo)':' (volta a ativo)'):''))); });
     d0.append(ul); resumo.push(d.nome+': +'+add.length+' −'+rem.length+(chg.length?' ✎'+chg.length:''));
   });
   const acts=el('div','acts'); const cancel=el('button','ghost','Cancelar'), ok=el('button','send','Atualizar lista');

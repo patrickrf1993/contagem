@@ -84,13 +84,14 @@ module.exports = async (req, res) => {
       if (acao === 'fechar') {
         if (atual) return res.status(200).json({ ok: true, fech: L.json(atual, null) });
         const cat = await L.lerCatalogo();
-        const lista = cat.itens[setor] || [];
         const [chaves] = await L.redis([['HKEYS', kItens]]);
         const contados = new Set((chaves || []).map(L.nk));
+        const soAtivos = b.modo === 'ativos';   // contagem rápida: inativos só entram no total se foram contados
+        const lista = (cat.itens[setor] || []).filter(it => !soAtivos || it.a !== false || contados.has(setor + ':c' + it.c));
         const n = lista.filter(it => contados.has(setor + ':c' + it.c)).length;
-        const rec = { u: u.login, nome: u.nome, t: agora, contados: n, total: lista.length };
+        const rec = { u: u.login, nome: u.nome, t: agora, contados: n, total: lista.length, modo: soAtivos ? 'ativos' : 'todos' };
         const [, , nv] = await L.redis([['HSET', kFech, setor, JSON.stringify(rec)], ['EXPIRE', kFech, L.CONT_VALIDADE], ['INCR', kVer], ['EXPIRE', kVer, L.CONT_VALIDADE]]
-          .concat(L.cmdsLog({ t: agora, u: u.login, nome: u.nome, acao: 'fechou', data, setor, detalhe: 'Fechou a contagem de ' + nomeSetor(setor) + ' (' + n + ' de ' + lista.length + ' itens)' })));
+          .concat(L.cmdsLog({ t: agora, u: u.login, nome: u.nome, acao: 'fechou', data, setor, detalhe: 'Fechou a contagem de ' + nomeSetor(setor) + ' (' + n + ' de ' + lista.length + ' itens' + (soAtivos ? ', só ativos' : '') + ')' })));
         return res.status(200).json({ ok: true, fech: rec, v: nv });
       }
       const motivo = String(b.motivo || '').trim().slice(0, 200);

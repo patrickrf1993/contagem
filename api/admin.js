@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
         const meusSet = new Set(meus.map(x => x.login));
         const info = {}; (cat.itens ? Object.keys(cat.itens) : []).forEach(d => (cat.itens[d] || []).forEach(it => { info[d + ':c' + it.c] = it; }));
         const setores = vis.map(id => {
-          const lista = cat.itens[id] || [];
+          const lista = (cat.itens[id] || []).filter(it => it.a !== false || itens[id + ':c' + it.c]);   // inativos só entram se foram contados
           const contados = lista.filter(it => itens[id + ':c' + it.c]).length;
           const s = u.setores.find(x => x.id === id) || { id, nome: id };
           return { id, nome: s.nome, dep: s.dep || '', total: lista.length, contados, fech: L.json(fech[id], null),
@@ -170,7 +170,8 @@ module.exports = async (req, res) => {
 
     /* ---------- lista de insumos (administrador: todos; gestor: só os setores dele) ---------- */
     if (b.acao === 'catalogo') {
-      // lista gerada pela macro ExportarInsumos: { SETOR: [{c, n, u, f}] }; só os setores que vieram no arquivo mudam
+      // lista gerada pela macro ExportarInsumos: { SETOR: [{c, n, u, f, a}] }; só os setores que vieram no arquivo mudam
+      // a = false: item inativo na planilha (fica fora da contagem rápida "Só ativos")
       const entrada = b.itens && typeof b.itens === 'object' ? b.itens : null;
       if (!entrada || !Object.keys(entrada).length) return res.status(400).json({ erro: 'itens', msg: 'Arquivo sem itens.' });
       const itens = {};
@@ -185,7 +186,9 @@ module.exports = async (req, res) => {
           if (vistos.has(c)) return res.status(400).json({ erro: 'duplicado', msg: 'Código repetido em ' + d + ': ' + c });
           vistos.add(c);
           const f = it.f == null || it.f === '' ? null : Number(it.f);
-          itens[d].push({ c, n: String(it.n || '').trim().slice(0, 120) || c, u: String(it.u || '').trim().slice(0, 12), f: f != null && isFinite(f) && f > 0 ? f : null });
+          const reg = { c, n: String(it.n || '').trim().slice(0, 120) || c, u: String(it.u || '').trim().slice(0, 12), f: f != null && isFinite(f) && f > 0 ? f : null };
+          if (it.a === false) reg.a = false;
+          itens[d].push(reg);
         }
       }
       const cat = await L.lerCatalogo();
